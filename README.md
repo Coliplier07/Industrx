@@ -1,4 +1,4 @@
-# IronClad 🚜⚡
+# IronClad 
 
 **IronClad** is a cross-platform mobile and web solution engineered specifically for small to medium-sized industrial contractors, pipeline maintenance teams, and heavy construction operators. Designed for high-speed field entry, remote job sites, and configurable billing workflows.
 
