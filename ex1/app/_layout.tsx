@@ -23,7 +23,18 @@ export default function Layout() {
           title: 'IronClad Dashboard',
           headerLeft: () => null, // Prevents PMs from accidentally going back to Login
           gestureEnabled: false,   // Disables swipe-back on iOS
+
+          
+        }}
+        />
+      {/* 4. Daily Log S creen */}
+        <Stack.Screen 
+          name="(dashboard)/daily-log" 
+          options={{ 
+           title: 'New Daily Log',
+           headerBackTitle: 'Back',
         }} 
+        
       />
     </Stack>
   );

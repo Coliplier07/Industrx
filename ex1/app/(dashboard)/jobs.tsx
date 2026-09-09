@@ -30,7 +30,7 @@ export default function JobsDashboard() {
             title="Daily Log" 
             icon="journal" 
             color="#075eec" 
-            onPress={() => console.log('Navigate to Logs')} 
+            onPress={() => router.push("/(dashboard)/daily-log")}
           />
           <MenuButton 
             title="Fuel Pump" 
