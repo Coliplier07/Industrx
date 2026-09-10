@@ -16,26 +16,8 @@ export default function Layout() {
       <Stack.Screen name="(auth)/login" options={{ title: 'Sign In', headerShown: false }} />
       <Stack.Screen name="(auth)/create" options={{ title: 'Create Account' }} />
 
-      {/* 3. Dashboard Group */}
-      <Stack.Screen 
-        name="(dashboard)/jobs" 
-        options={{ 
-          title: 'IronClad Dashboard',
-          headerLeft: () => null, // Prevents PMs from accidentally going back to Login
-          gestureEnabled: false,   // Disables swipe-back on iOS
-
-          
-        }}
-        />
-      {/* 4. Daily Log S creen */}
-        <Stack.Screen 
-          name="(dashboard)/daily-log" 
-          options={{ 
-           title: 'New Daily Log',
-           headerBackTitle: 'Back',
-        }} 
-        
-      />
+      {/* 3. Dashboard Group (tab navigator handles its own headers) */}
+      <Stack.Screen name="(dashboard)" options={{ headerShown: false }} />
     </Stack>
   );
 }
