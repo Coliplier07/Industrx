@@ -8,11 +8,6 @@ export default function JobsDashboard() {
   const router = useRouter();
   const { projects } = useProjects();
 
-  const handleLogout = () => {
-    // Sends the PM back to the login screen and clears the dashboard from history
-    router.replace('/(auth)/login');
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -41,11 +36,6 @@ export default function JobsDashboard() {
             />
           ))
         )}
-
-        {/* Logout Section */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Sign Out of IronClad</Text>
-        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>
@@ -122,6 +112,4 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   badgeText: { color: '#075eec', fontWeight: 'bold', fontSize: 13 },
-  logoutBtn: { marginTop: 20, padding: 15, alignItems: 'center' },
-  logoutText: { color: '#FF3B30', fontWeight: 'bold' },
 });
