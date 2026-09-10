@@ -21,11 +21,9 @@ jobs:
           fetch-depth: 0
 
       - name: Secret Scanning (TruffleHog)
-        uses: trufflesecurity/trufflehog-actions-scan@main
+        uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
