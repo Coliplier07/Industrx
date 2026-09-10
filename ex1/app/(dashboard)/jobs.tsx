@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView } fr
 import { useRouter } from "expo-router";
 import { Ionicons } from '@expo/vector-icons';
 
+
 export default function JobsDashboard() {
   const router = useRouter();
 
