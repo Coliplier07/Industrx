@@ -41,7 +41,7 @@ export default function JobsDashboard() {
           <MenuButton 
             title="Receipts" 
             icon="camera" 
-            color="#f72c22" 
+            color="#f82a1f" 
             onPress={() => console.log('Camera Open')} 
           />
           <MenuButton 
