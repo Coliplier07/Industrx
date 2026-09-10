@@ -1,14 +1,43 @@
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 
-import React,{useState} from "react";
+import React, { useState } from "react";
+import { useRouter } from "expo-router";
+import { supabase } from "@/lib/supabase";
 
 export default function Create() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = () => {
-    // This is where you'd call your API (Firebase, Supabase, etc.)
-    Alert.alert('Success', `Account created for ${email}`);
+  const handleSignup = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing Info', 'Please enter an email and password.');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Weak Password', 'Password must be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Sign Up Failed', error.message);
+      return;
+    }
+
+    if (data.session) {
+      // Email confirmation is off for this project, so we're signed in already.
+      router.replace('/(dashboard)/jobs');
+    } else {
+      // Email confirmation is required before the account can sign in.
+      Alert.alert('Check Your Email', `We sent a confirmation link to ${email}.`, [
+        { text: 'OK', onPress: () => router.replace('/(auth)/login') },
+      ]);
+    }
   };
 
   return (
@@ -34,8 +63,12 @@ export default function Create() {
         secureTextEntry // Hides the password
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleSignup}>
-        <Text style={styles.buttonText}>Sign Up</Text>
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleSignup}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>{loading ? 'Creating Account...' : 'Sign Up'}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -67,6 +100,9 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     color: '#fff',

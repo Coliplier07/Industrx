@@ -1,6 +1,7 @@
-import { Text, View,SafeAreaView,StyleSheet,Image, TextInput,TouchableOpacity } from "react-native";
-import { Link } from "expo-router";
-import React,{useState} from "react";
+import { Text, View,SafeAreaView,StyleSheet,Image, TextInput,TouchableOpacity, ActivityIndicator } from "react-native";
+import { Link, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 
 
@@ -13,8 +14,8 @@ interface MenuButtonProps {
 
 // 2. The Button Component (placed OUTSIDE the main Home function)
 const MenuButton = ({ title, onPress, color }: MenuButtonProps) => (
-  <TouchableOpacity 
-    style={[styles.button, { backgroundColor: color, borderColor: color }]} 
+  <TouchableOpacity
+    style={[styles.button, { backgroundColor: color, borderColor: color }]}
     onPress={onPress}
   >
     <Text style={styles.buttonText}>{title}</Text>
@@ -22,6 +23,27 @@ const MenuButton = ({ title, onPress, color }: MenuButtonProps) => (
 );
 
 const Home = () => {
+  const router = useRouter();
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace("/(dashboard)/jobs");
+      } else {
+        setCheckingSession(false);
+      }
+    });
+  }, []);
+
+  if (checkingSession) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#eBecf4', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#075eec" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#eBecf4' }}>
       <View style={styles.container}>

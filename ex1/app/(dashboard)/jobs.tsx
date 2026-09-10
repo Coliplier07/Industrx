@@ -2,12 +2,14 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from "expo-router";
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from "@/lib/supabase";
 
 
 export default function JobsDashboard() {
   const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     // Sends the PM back to the login screen and clears the dashboard from history
     router.replace("/(auth)/login");
   };
