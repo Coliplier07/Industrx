@@ -21,7 +21,7 @@ function Login() {
       // 4. THE CONNECTION:
       // We use .replace so the PM cannot "go back" to the login screen 
       // after they have already accessed the dashboard.
-      router.replace("/(dashboard)/jobs"); 
+      router.replace("/jobs");
     } else {
       alert("Please enter credentials");
     }

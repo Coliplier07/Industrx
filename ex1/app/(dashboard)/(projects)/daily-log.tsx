@@ -8,35 +8,43 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-
-interface LaborEntry {
-  id: string;
-  workerName: string;
-  trade: string;
-  stHours: number;
-  otHours: number;
-}
-
-interface EquipmentEntry {
-  id: string;
-  equipmentName: string;
-  hoursUsed: number;
-}
+import { useProjects, LaborEntry, EquipmentEntry } from '@/context/ProjectsContext';
 
 export default function DailyLogScreen() {
+  const { projectId, logId } = useLocalSearchParams<{ projectId: string; logId?: string }>();
+  // `key` forces a fresh component instance (and fresh initial state) whenever
+  // the target log changes, since this hidden-tab screen would otherwise be
+  // reused across navigations instead of remounted.
+  return <DailyLogForm key={`${projectId}-${logId ?? 'new'}`} projectId={projectId} logId={logId} />;
+}
+
+function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string }) {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { getProject, addDailyLog, updateDailyLog } = useProjects();
+
+  const existingLog = logId ? getProject(projectId)?.dailyLogs.find((l) => l.id === logId) : undefined;
+  const isEditing = !!existingLog;
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({ title: isEditing ? 'Edit Daily Log' : 'New Daily Log' });
+  }, [isEditing]);
 
   // Form State
-  const [workDescription, setWorkDescription] = useState('');
-  const [laborEntries, setLaborEntries] = useState<LaborEntry[]>([
-    { id: '1', workerName: '', trade: 'Operator', stHours: 8, otHours: 0 },
-  ]);
-  const [equipmentEntries, setEquipmentEntries] = useState<EquipmentEntry[]>([
-    { id: '1', equipmentName: '', hoursUsed: 8 },
-  ]);
+  const [logDate, setLogDate] = useState(existingLog ? new Date(existingLog.date) : new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [workDescription, setWorkDescription] = useState(existingLog?.workDescription ?? '');
+  const [laborEntries, setLaborEntries] = useState<LaborEntry[]>(
+    existingLog?.laborEntries ?? [{ id: '1', workerName: '', trade: 'Operator', stHours: 8, otHours: 0 }]
+  );
+  const [equipmentEntries, setEquipmentEntries] = useState<EquipmentEntry[]>(
+    existingLog?.equipmentEntries ?? [{ id: '1', equipmentName: '', hoursUsed: 8 }]
+  );
 
   // --- Labor Handlers ---
   const addLaborRow = () => {
@@ -78,6 +86,17 @@ export default function DailyLogScreen() {
     }
   };
 
+  // --- Date Handler ---
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (event.type === 'dismissed') return;
+    if (selectedDate) {
+      setLogDate(selectedDate);
+    }
+  };
+
   // --- Submission Handler ---
   const handleSaveLog = () => {
     if (!workDescription.trim()) {
@@ -85,24 +104,65 @@ export default function DailyLogScreen() {
       return;
     }
 
+    if (!projectId) {
+      Alert.alert('Error', 'No project selected for this log.');
+      return;
+    }
+
     const payload = {
-      date: new Date().toISOString(),
+      date: logDate.toISOString(),
       workDescription,
       laborEntries,
       equipmentEntries,
-      isSynced: false, // Saves locally first for offline support
     };
 
-    console.log('Saved Daily Log Payload:', payload);
-    Alert.alert('Success', 'Daily Log saved locally.', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    if (isEditing && logId) {
+      updateDailyLog(projectId, logId, payload);
+      Alert.alert('Success', 'Daily Log updated.', [{ text: 'OK', onPress: () => router.back() }]);
+    } else {
+      addDailyLog(projectId, payload);
+      Alert.alert('Success', 'Daily Log saved to the project.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
+
+        {/* Log Date Section */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Log Date</Text>
+          <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
+            <Ionicons name="calendar-outline" size={18} color="#075eec" />
+            <Text style={styles.dateBtnText}>
+              {logDate.toLocaleDateString(undefined, {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={logDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              themeVariant="light"
+              maximumDate={new Date()}
+              onChange={handleDateChange}
+            />
+          )}
+          {Platform.OS === 'ios' && showDatePicker && (
+            <TouchableOpacity style={styles.doneBtn} onPress={() => setShowDatePicker(false)}>
+              <Text style={styles.doneBtnText}>Done</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Work Description Section */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Work Description</Text>
@@ -242,7 +302,7 @@ export default function DailyLogScreen() {
 
         {/* Action Button */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSaveLog}>
-          <Text style={styles.saveButtonText}>Submit Daily Log</Text>
+          <Text style={styles.saveButtonText}>{isEditing ? 'Save Changes' : 'Submit Daily Log'}</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -270,6 +330,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#1e1e1e', marginBottom: 8 },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderColor: '#e1e4e8',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dateBtnText: { fontSize: 15, fontWeight: '600', color: '#1e1e1e', marginLeft: 8 },
+  doneBtn: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  doneBtnText: { color: '#075eec', fontWeight: '700' },
   addBtn: { flexDirection: 'row', alignItems: 'center' },
   addBtnText: { color: '#075eec', fontWeight: '600', marginLeft: 4 },
   textArea: {
