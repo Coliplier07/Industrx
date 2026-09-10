@@ -1,7 +1,8 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 const USER = {
   name: 'John Doe',
@@ -12,6 +13,7 @@ const USER = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -21,6 +23,38 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: () => router.replace('/(auth)/login'),
       },
+    ]);
+  };
+
+  const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Needed', 'Allow photo library access to set a profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const handleAvatarPress = () => {
+    if (!avatarUri) {
+      pickPhoto();
+      return;
+    }
+
+    Alert.alert('Profile Photo', undefined, [
+      { text: 'Replace Photo', onPress: pickPhoto },
+      { text: 'Remove Photo', style: 'destructive', onPress: () => setAvatarUri(null) },
+      { text: 'Cancel', style: 'cancel' },
     ]);
   };
 
@@ -34,9 +68,16 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
         <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          <TouchableOpacity style={styles.avatar} onPress={handleAvatarPress}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{initials}</Text>
+            )}
+            <View style={styles.editBadge}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </TouchableOpacity>
           <Text style={styles.name}>{USER.name}</Text>
           <Text style={styles.role}>{USER.role}</Text>
         </View>
@@ -85,7 +126,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  avatarImage: { width: 72, height: 72, borderRadius: 36 },
   avatarText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
+  editBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#075eec',
+    borderWidth: 2,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   name: { fontSize: 20, fontWeight: 'bold', color: '#1e1e1e' },
   role: { fontSize: 14, color: '#6b7280', marginTop: 2 },
   card: {
