@@ -68,10 +68,17 @@ function ProjectCard({ project, onPress }: { project: Project; onPress: () => vo
       </View>
       <Text style={styles.jobTitle}>{project.name}</Text>
       {!!project.location && <Text style={styles.locationText}>{project.location}</Text>}
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>
-          {project.dailyLogs.length} Daily Log{project.dailyLogs.length === 1 ? '' : 's'}
-        </Text>
+      <View style={styles.badgeRow}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {project.dailyLogs.length} Daily Log{project.dailyLogs.length === 1 ? '' : 's'}
+          </Text>
+        </View>
+        <View style={[styles.badge, styles.receiptBadge]}>
+          <Text style={[styles.badgeText, styles.receiptBadgeText]}>
+            {project.receipts.length} Receipt{project.receipts.length === 1 ? '' : 's'}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -117,12 +124,14 @@ const styles = StyleSheet.create({
   statusCompleted: { backgroundColor: '#8e8e93' },
   jobTitle: { fontSize: 20, fontWeight: 'bold', color: '#1e1e1e', marginTop: 4 },
   locationText: { fontSize: 14, color: '#6b7280', marginTop: 2 },
+  badgeRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   badge: {
     backgroundColor: '#075eec20',
     padding: 6,
     borderRadius: 6,
     alignSelf: 'flex-start',
-    marginTop: 10,
   },
   badgeText: { color: '#075eec', fontWeight: 'bold', fontSize: 13 },
+  receiptBadge: { backgroundColor: '#f59e0b20' },
+  receiptBadgeText: { color: '#b45309' },
 });
