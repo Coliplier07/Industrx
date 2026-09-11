@@ -1,30 +1,40 @@
-import { Text, View,SafeAreaView,StyleSheet,Image, TextInput,TouchableOpacity } from "react-native";
-import React,{useState} from "react";
-import { NavigationContainer } from '@react-navigation/native';
+import { Text, View, SafeAreaView, StyleSheet, Image, TextInput, TouchableOpacity, Alert } from "react-native";
+import React, { useState } from "react";
 import { useRouter } from "expo-router";
+import { supabase } from "@/lib/supabase";
 
 
 
 function Login() {
   const router = useRouter(); // Initialize the router
-  
+
   const [form, setForm] = useState({
     email: '',
     password: '',
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSignIn = () => {
-    // 3. Validation Logic (Optional for now)
-    if (form.email && form.password) {
-      console.log("Logging in...");
-
-      // 4. THE CONNECTION:
-      // We use .replace so the PM cannot "go back" to the login screen 
-      // after they have already accessed the dashboard.
-      router.replace("/jobs");
-    } else {
-      alert("Please enter credentials");
+  const handleSignIn = async () => {
+    if (!form.email || !form.password) {
+      Alert.alert("Missing Info", "Please enter your email and password.");
+      return;
     }
+
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert("Sign In Failed", error.message);
+      return;
+    }
+
+    // We use .replace so the PM cannot "go back" to the login screen
+    // after they have already accessed the dashboard.
+    router.replace("/jobs");
   };
 
   // ... rest of your return code stays the same
@@ -75,10 +85,9 @@ function Login() {
               onChangeText={password => setForm({ ...form, password })}
             />
           </View>
-          <TouchableOpacity onPress={handleSignIn}>
-            
-        <View style={styles.button}>
-          <Text style={styles.buttonText}>Sign in</Text>
+          <TouchableOpacity onPress={handleSignIn} disabled={loading}>
+        <View style={[styles.button, loading && styles.buttonDisabled]}>
+          <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Sign in'}</Text>
         </View>
       </TouchableOpacity>
     </View>
@@ -188,6 +197,9 @@ const styles= StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     marginVertical: 24,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     fontSize: 18,
