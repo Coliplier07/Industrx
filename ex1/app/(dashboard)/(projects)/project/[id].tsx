@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useProjects, DailyLog } from '@/context/ProjectsContext';
+import { useProjects, DailyLog, Receipt } from '@/context/ProjectsContext';
 
 export default function ProjectDetailScreen() {
   const router = useRouter();
@@ -62,6 +62,26 @@ export default function ProjectDetailScreen() {
           ))
         )}
 
+        <View style={styles.receiptsHeader}>
+          <Text style={styles.sectionTitle}>Receipts</Text>
+          <TouchableOpacity
+            style={styles.addReceiptBtn}
+            onPress={() => router.push({ pathname: '/receipt/new', params: { projectId: project.id } })}
+          >
+            <Ionicons name="add" size={16} color="#075eec" />
+            <Text style={styles.addReceiptBtnText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+        {project.receipts.length === 0 ? (
+          <Text style={styles.emptyText}>No receipts yet.</Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.receiptsRow}>
+            {project.receipts.map((receipt) => (
+              <ReceiptThumbnail key={receipt.id} receipt={receipt} />
+            ))}
+          </ScrollView>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -80,6 +100,25 @@ function DailyLogRow({ log, onPress }: { log: DailyLog; onPress: () => void }) {
         {log.equipmentEntries.length} equipment
       </Text>
     </TouchableOpacity>
+  );
+}
+
+function ReceiptThumbnail({ receipt }: { receipt: Receipt }) {
+  const dateLabel = new Date(receipt.date).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+  return (
+    <View style={styles.receiptCard}>
+      {receipt.signedUrl ? (
+        <Image source={{ uri: receipt.signedUrl }} style={styles.receiptThumb} />
+      ) : (
+        <View style={[styles.receiptThumb, styles.receiptThumbPlaceholder]}>
+          <Ionicons name="receipt-outline" size={24} color="#c7ccd1" />
+        </View>
+      )}
+      <Text style={styles.receiptDate}>{dateLabel}</Text>
+    </View>
   );
 }
 
@@ -128,4 +167,30 @@ const styles = StyleSheet.create({
   logDate: { fontSize: 13, fontWeight: '700', color: '#075eec', marginBottom: 4 },
   logDescription: { fontSize: 15, color: '#1e1e1e', marginBottom: 4 },
   logMeta: { fontSize: 12, color: '#6b7280' },
+  receiptsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addReceiptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eef4ff',
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  addReceiptBtnText: { color: '#075eec', fontWeight: '600', fontSize: 13, marginLeft: 2 },
+  receiptsRow: { marginBottom: 8 },
+  receiptCard: { marginRight: 12, alignItems: 'center' },
+  receiptThumb: { width: 90, height: 90, borderRadius: 8 },
+  receiptThumbPlaceholder: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptDate: { fontSize: 12, color: '#6b7280', marginTop: 4 },
 });

@@ -15,6 +15,7 @@ export default function ProjectsStackLayout() {
       <Stack.Screen name="project/[id]" options={{ title: 'Project' }} />
       <Stack.Screen name="daily-log" />
       <Stack.Screen name="log/[logId]" />
+      <Stack.Screen name="receipt/new" options={{ title: 'Add Receipt' }} />
     </Stack>
   );
 }

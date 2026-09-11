@@ -23,12 +23,22 @@ export interface DailyLog {
   equipmentEntries: EquipmentEntry[];
 }
 
+export interface Receipt {
+  id: string;
+  date: string;
+  imagePath: string;
+  // Private-bucket files need a freshly-signed URL to actually display;
+  // null until attachSignedUrls() fills it in after each fetch.
+  signedUrl: string | null;
+}
+
 export interface Project {
   id: string;
   name: string;
   location: string;
   status: 'Active' | 'Completed';
   dailyLogs: DailyLog[];
+  receipts: Receipt[];
 }
 
 interface ProjectsContextValue {
@@ -38,6 +48,7 @@ interface ProjectsContextValue {
   addDailyLog: (projectId: string, log: Omit<DailyLog, 'id'>) => Promise<void>;
   updateDailyLog: (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => Promise<void>;
   deleteDailyLog: (projectId: string, logId: string) => Promise<void>;
+  addReceipt: (projectId: string, imageUri: string, date: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
 }
 
@@ -70,10 +81,41 @@ function mapProjectRow(row: any): Project {
         })),
       }))
       .sort((a: DailyLog, b: DailyLog) => (a.date < b.date ? 1 : -1)),
+    receipts: (row.receipts ?? [])
+      .map((receipt: any): Receipt => ({
+        id: receipt.id,
+        date: receipt.date,
+        imagePath: receipt.image_path,
+        signedUrl: null,
+      }))
+      .sort((a: Receipt, b: Receipt) => (a.date < b.date ? 1 : -1)),
   };
 }
 
-const PROJECT_SELECT = '*, daily_logs(*, labor_entries(*), equipment_entries(*))';
+// Private-bucket files aren't directly fetchable by URL — generate a
+// short-lived signed URL for every receipt across every project in one
+// batch call, then merge the results in.
+async function attachSignedUrls(projects: Project[]): Promise<Project[]> {
+  const paths = projects.flatMap((p) => p.receipts.map((r) => r.imagePath));
+  if (paths.length === 0) return projects;
+
+  const { data, error } = await supabase.storage.from('receipts').createSignedUrls(paths, 3600);
+  if (error || !data) {
+    console.error('Failed to sign receipt URLs:', error?.message);
+    return projects;
+  }
+
+  const urlByPath = new Map(data.map((entry) => [entry.path, entry.signedUrl]));
+  return projects.map((project) => ({
+    ...project,
+    receipts: project.receipts.map((receipt) => ({
+      ...receipt,
+      signedUrl: urlByPath.get(receipt.imagePath) ?? null,
+    })),
+  }));
+}
+
+const PROJECT_SELECT = '*, daily_logs(*, labor_entries(*), equipment_entries(*)), receipts(*)';
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -110,9 +152,13 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     if (error) {
       console.error('Failed to load projects:', error.message);
       setProjects([]);
-    } else {
-      setProjects((data ?? []).map(mapProjectRow));
+      setLoading(false);
+      return;
     }
+
+    const mapped = await attachSignedUrls((data ?? []).map(mapProjectRow));
+    if (fetchIdRef.current !== fetchId) return;
+    setProjects(mapped);
     setLoading(false);
   };
 
@@ -220,11 +266,45 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     await fetchProjects();
   };
 
+  const addReceipt = async (projectId: string, imageUri: string, date: string) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not signed in.');
+
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const path = `${user.id}/${projectId}/${fileName}`;
+
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+
+    const { error: uploadError } = await supabase.storage
+      .from('receipts')
+      .upload(path, blob, { contentType: 'image/jpeg' });
+    if (uploadError) throw uploadError;
+
+    const { error: insertError } = await supabase
+      .from('receipts')
+      .insert({ project_id: projectId, date, image_path: path });
+    if (insertError) throw insertError;
+
+    await fetchProjects();
+  };
+
   const getProject = (id: string) => projects.find((p) => p.id === id);
 
   return (
     <ProjectsContext.Provider
-      value={{ projects, loading, addProject, addDailyLog, updateDailyLog, deleteDailyLog, getProject }}
+      value={{
+        projects,
+        loading,
+        addProject,
+        addDailyLog,
+        updateDailyLog,
+        deleteDailyLog,
+        addReceipt,
+        getProject,
+      }}
     >
       {children}
     </ProjectsContext.Provider>
