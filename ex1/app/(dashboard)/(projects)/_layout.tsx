@@ -17,10 +17,27 @@ export default function ProjectsStackLayout() {
         headerStyle: { backgroundColor: '#075eec' }, // IronClad Blue
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
+        // Classic headerLeft as the cross-platform fallback (Android/web).
         headerLeft: ({ canGoBack }) => <BackButton canGoBack={canGoBack} />,
+        // On iOS this wins over headerLeft. hidesSharedBackground suppresses
+        // iOS 26's automatic "Liquid Glass" pill behind custom bar buttons,
+        // which otherwise wraps our plain icon in a large translucent circle.
+        unstable_headerLeftItems: ({ canGoBack }) =>
+          canGoBack
+            ? [
+                {
+                  type: 'custom',
+                  element: <BackButton canGoBack={canGoBack} />,
+                  hidesSharedBackground: true,
+                },
+              ]
+            : [],
       }}
     >
-      <Stack.Screen name="jobs" options={{ title: 'Projects', headerLeft: () => null }} />
+      <Stack.Screen
+        name="jobs"
+        options={{ title: 'Projects', headerLeft: () => null, unstable_headerLeftItems: () => [] }}
+      />
       <Stack.Screen name="project/new" />
       <Stack.Screen name="project/[id]" />
       <Stack.Screen name="daily-log" />

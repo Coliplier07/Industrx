@@ -40,6 +40,13 @@ export default function ProjectDetailScreen() {
       headerRight: () => (
         <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />
       ),
+      unstable_headerRightItems: () => [
+        {
+          type: 'custom',
+          element: <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />,
+          hidesSharedBackground: true,
+        },
+      ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
