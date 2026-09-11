@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -152,6 +153,11 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardDismissMode="on-drag"
@@ -339,6 +345,7 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
         </TouchableOpacity>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -346,6 +353,7 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
   loadingContainer: { flex: 1, backgroundColor: '#eBecf4', justifyContent: 'center', alignItems: 'center' },
+  keyboardAvoider: { flex: 1 },
   scrollContent: { padding: 16 },
   card: {
     backgroundColor: '#fff',

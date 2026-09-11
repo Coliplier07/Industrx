@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 
 import React, { useState } from "react";
 import { useRouter } from "expo-router";
@@ -41,6 +41,11 @@ export default function Create() {
   };
 
   return (
+    <KeyboardAvoidingView
+      style={styles.flexFill}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
     <ScrollView
       contentContainerStyle={styles.container}
       keyboardDismissMode="on-drag"
@@ -75,10 +80,12 @@ export default function Create() {
         <Text style={styles.buttonText}>{loading ? 'Creating Account...' : 'Sign Up'}</Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flexFill: { flex: 1 },
   container: {
     flexGrow: 1,
     justifyContent: 'center',

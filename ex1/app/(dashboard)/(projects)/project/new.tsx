@@ -9,6 +9,8 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useProjects } from '@/context/ProjectsContext';
@@ -75,6 +77,11 @@ function ProjectForm({ projectId }: { projectId?: string }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      >
       <ScrollView keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Text style={styles.label}>Project Name</Text>
@@ -130,6 +137,7 @@ function ProjectForm({ projectId }: { projectId?: string }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -137,6 +145,7 @@ function ProjectForm({ projectId }: { projectId?: string }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
   loadingContainer: { flex: 1, backgroundColor: '#eBecf4', justifyContent: 'center', alignItems: 'center' },
+  keyboardAvoider: { flex: 1 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,

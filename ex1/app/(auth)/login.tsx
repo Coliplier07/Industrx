@@ -1,4 +1,4 @@
-import { Text, View, SafeAreaView, StyleSheet, Image, TextInput, TouchableOpacity, Alert, ScrollView } from "react-native";
+import { Text, View, SafeAreaView, StyleSheet, Image, TextInput, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import React, { useState } from "react";
 import { Link, useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +43,10 @@ function Login() {
   return  (
     //Styles for Image
     <SafeAreaView style={{flex: 1, backgroundColor:'#eBecf4' }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardDismissMode="on-drag"
@@ -102,6 +106,7 @@ function Login() {
       </Link>
     </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
