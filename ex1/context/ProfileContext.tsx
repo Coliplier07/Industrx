@@ -17,6 +17,12 @@ export interface Profile {
 interface ProfileContextValue {
   profile: Profile | null;
   loading: boolean;
+  // Whether there's a signed-in Supabase user at all — true even before a
+  // profiles row exists yet (e.g. mid-signup, before create_company_and_admin
+  // runs). Used to reactively guard the (dashboard) route group in the root
+  // layout via Stack.Protected, instead of imperative navigation from deep
+  // inside the Tabs navigator, which has proven unreliable.
+  hasSession: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -38,6 +44,7 @@ function mapProfileRow(row: any): Profile {
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
 
   // Guards against a stale, slower fetch (e.g. one started for the previous
   // account) resolving after a newer one and overwriting it with the wrong
@@ -53,6 +60,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     } = await supabase.auth.getUser();
 
     if (fetchIdRef.current !== fetchId) return;
+
+    setHasSession(!!user);
 
     if (!user) {
       setProfile(null);
@@ -92,6 +101,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
+        setHasSession(true);
         setLoading(true);
         fetchProfile();
       } else if (event === 'SIGNED_OUT') {
@@ -101,9 +111,16 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         // once signed out, so anything gating on "loading" (e.g. the
         // dashboard's tab bar) won't spin forever if it's still mounted
         // for a moment during the sign-out navigation.
+        // hasSession flips synchronously here (not inside fetchProfile,
+        // which is async) so Stack.Protected in the root layout reacts to
+        // sign-out immediately and unmounts the (dashboard) group itself,
+        // rather than relying on an imperative navigation call to escape
+        // several levels of nested navigators — which is what was actually
+        // getting stuck.
         fetchIdRef.current += 1;
         setProfile(null);
         setLoading(false);
+        setHasSession(false);
       }
     });
 
@@ -111,7 +128,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ProfileContext.Provider value={{ profile, loading, refresh: fetchProfile }}>
+    <ProfileContext.Provider value={{ profile, loading, hasSession, refresh: fetchProfile }}>
       {children}
     </ProfileContext.Provider>
   );
