@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useProfile } from '@/context/ProfileContext';
 
 export interface LaborEntry {
   id: string;
@@ -143,6 +144,7 @@ const PROJECT_SELECT =
   '*, daily_logs(*, labor_entries(*), equipment_entries(*), vehicle_entries(*)), receipts(*)';
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
+  const { profile } = useProfile();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -214,10 +216,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) throw new Error('Not signed in.');
+    if (!profile) throw new Error('Profile not loaded yet.');
 
     const { data, error } = await supabase
       .from('projects')
-      .insert({ user_id: user.id, name, location, status: 'Active' })
+      .insert({ user_id: user.id, company_id: profile.companyId, name, location, status: 'Active' })
       .select()
       .single();
 
