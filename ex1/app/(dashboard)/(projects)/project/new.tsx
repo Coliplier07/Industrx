@@ -8,14 +8,22 @@ export default function NewProjectScreen() {
   const { addProject } = useProjects();
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!name.trim()) {
       Alert.alert('Required Field', 'Please enter a project name.');
       return;
     }
-    const project = addProject(name.trim(), location.trim());
-    router.replace(`/project/${project.id}`);
+    setSaving(true);
+    try {
+      const project = await addProject(name.trim(), location.trim());
+      router.replace(`/project/${project.id}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message ?? 'Failed to create project.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -40,8 +48,12 @@ export default function NewProjectScreen() {
             onChangeText={setLocation}
           />
 
-          <TouchableOpacity style={styles.createBtn} onPress={handleCreate}>
-            <Text style={styles.createBtnText}>Create Project</Text>
+          <TouchableOpacity
+            style={[styles.createBtn, saving && styles.createBtnDisabled]}
+            onPress={handleCreate}
+            disabled={saving}
+          >
+            <Text style={styles.createBtnText}>{saving ? 'Creating...' : 'Create Project'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -74,5 +86,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
   },
+  createBtnDisabled: { opacity: 0.6 },
   createBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

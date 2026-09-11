@@ -1,12 +1,20 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProjects, Project } from '@/context/ProjectsContext';
 
 export default function JobsDashboard() {
   const router = useRouter();
-  const { projects } = useProjects();
+  const { projects, loading } = useProjects();
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#075eec" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -71,6 +79,7 @@ function ProjectCard({ project, onPress }: { project: Project; onPress: () => vo
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
+  centered: { justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 20 },
   headerRow: {
     flexDirection: 'row',

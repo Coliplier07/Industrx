@@ -45,6 +45,7 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
   const [equipmentEntries, setEquipmentEntries] = useState<EquipmentEntry[]>(
     existingLog?.equipmentEntries ?? [{ id: '1', equipmentName: '', hoursUsed: 8 }]
   );
+  const [saving, setSaving] = useState(false);
 
   // --- Labor Handlers ---
   const addLaborRow = () => {
@@ -98,7 +99,7 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
   };
 
   // --- Submission Handler ---
-  const handleSaveLog = () => {
+  const handleSaveLog = async () => {
     if (!workDescription.trim()) {
       Alert.alert('Required Field', 'Please enter a description of work done.');
       return;
@@ -116,14 +117,21 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
       equipmentEntries,
     };
 
-    if (isEditing && logId) {
-      updateDailyLog(projectId, logId, payload);
-      Alert.alert('Success', 'Daily Log updated.', [{ text: 'OK', onPress: () => router.back() }]);
-    } else {
-      addDailyLog(projectId, payload);
-      Alert.alert('Success', 'Daily Log saved to the project.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+    setSaving(true);
+    try {
+      if (isEditing && logId) {
+        await updateDailyLog(projectId, logId, payload);
+        Alert.alert('Success', 'Daily Log updated.', [{ text: 'OK', onPress: () => router.back() }]);
+      } else {
+        await addDailyLog(projectId, payload);
+        Alert.alert('Success', 'Daily Log saved to the project.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message ?? 'Failed to save daily log.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -305,8 +313,14 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
         </View>
 
         {/* Action Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveLog}>
-          <Text style={styles.saveButtonText}>{isEditing ? 'Save Changes' : 'Submit Daily Log'}</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          onPress={handleSaveLog}
+          disabled={saving}
+        >
+          <Text style={styles.saveButtonText}>
+            {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Submit Daily Log'}
+          </Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -415,5 +429,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 32,
   },
+  saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { color: '#fff', fontSize: 18, fontWeight: '700' },
 });

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface LaborEntry {
   id: string;
@@ -32,75 +33,182 @@ export interface Project {
 
 interface ProjectsContextValue {
   projects: Project[];
-  addProject: (name: string, location: string) => Project;
-  addDailyLog: (projectId: string, log: Omit<DailyLog, 'id'>) => void;
-  updateDailyLog: (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => void;
-  deleteDailyLog: (projectId: string, logId: string) => void;
+  loading: boolean;
+  addProject: (name: string, location: string) => Promise<Project>;
+  addDailyLog: (projectId: string, log: Omit<DailyLog, 'id'>) => Promise<void>;
+  updateDailyLog: (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => Promise<void>;
+  deleteDailyLog: (projectId: string, logId: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | undefined>(undefined);
 
-const initialProjects: Project[] = [];
+// Maps a Supabase row (with nested daily_logs/labor_entries/equipment_entries)
+// into the shape the rest of the app already expects.
+function mapProjectRow(row: any): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    location: row.location ?? '',
+    status: row.status,
+    dailyLogs: (row.daily_logs ?? [])
+      .map((log: any): DailyLog => ({
+        id: log.id,
+        date: log.date,
+        workDescription: log.work_description ?? '',
+        laborEntries: (log.labor_entries ?? []).map((entry: any): LaborEntry => ({
+          id: entry.id,
+          workerName: entry.worker_name ?? '',
+          trade: entry.trade ?? '',
+          stHours: Number(entry.st_hours) || 0,
+          otHours: Number(entry.ot_hours) || 0,
+        })),
+        equipmentEntries: (log.equipment_entries ?? []).map((entry: any): EquipmentEntry => ({
+          id: entry.id,
+          equipmentName: entry.equipment_name ?? '',
+          hoursUsed: Number(entry.hours_used) || 0,
+        })),
+      }))
+      .sort((a: DailyLog, b: DailyLog) => (a.date < b.date ? 1 : -1)),
+  };
+}
+
+const PROJECT_SELECT = '*, daily_logs(*, labor_entries(*), equipment_entries(*))';
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addProject = (name: string, location: string) => {
-    const newProject: Project = {
-      id: Date.now().toString(),
-      name,
-      location,
-      status: 'Active',
-      dailyLogs: [],
-    };
+  const fetchProjects = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('projects')
+      .select(PROJECT_SELECT)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Failed to load projects:', error.message);
+      setProjects([]);
+    } else {
+      setProjects((data ?? []).map(mapProjectRow));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    // Initial data fetch on mount, not derived state — the rule below is
+    // meant for the "sync state from props" anti-pattern, not this.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProjects();
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        setLoading(true);
+        fetchProjects();
+      } else if (event === 'SIGNED_OUT') {
+        setProjects([]);
+      }
+    });
+
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  const addProject = async (name: string, location: string): Promise<Project> => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not signed in.');
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({ user_id: user.id, name, location, status: 'Active' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const newProject = mapProjectRow({ ...data, daily_logs: [] });
     setProjects((prev) => [...prev, newProject]);
     return newProject;
   };
 
-  const addDailyLog = (projectId: string, log: Omit<DailyLog, 'id'>) => {
-    setProjects((prev) =>
-      prev.map((project) =>
-        project.id === projectId
-          ? {
-              ...project,
-              dailyLogs: [{ ...log, id: Date.now().toString() }, ...project.dailyLogs],
-            }
-          : project
-      )
-    );
+  const addDailyLog = async (projectId: string, log: Omit<DailyLog, 'id'>) => {
+    const { data: logRow, error: logError } = await supabase
+      .from('daily_logs')
+      .insert({ project_id: projectId, date: log.date, work_description: log.workDescription })
+      .select()
+      .single();
+    if (logError) throw logError;
+
+    await writeEntries(logRow.id, log.laborEntries, log.equipmentEntries);
+    await fetchProjects();
   };
 
-  const updateDailyLog = (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => {
-    setProjects((prev) =>
-      prev.map((project) =>
-        project.id === projectId
-          ? {
-              ...project,
-              dailyLogs: project.dailyLogs.map((log) =>
-                log.id === logId ? { ...updates, id: logId } : log
-              ),
-            }
-          : project
-      )
-    );
+  const updateDailyLog = async (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => {
+    const { error: logError } = await supabase
+      .from('daily_logs')
+      .update({ date: updates.date, work_description: updates.workDescription })
+      .eq('id', logId);
+    if (logError) throw logError;
+
+    // Simplest correct approach: replace all child rows rather than diffing
+    // which entries changed, since the form re-submits the full set each time.
+    await supabase.from('labor_entries').delete().eq('daily_log_id', logId);
+    await supabase.from('equipment_entries').delete().eq('daily_log_id', logId);
+    await writeEntries(logId, updates.laborEntries, updates.equipmentEntries);
+    await fetchProjects();
   };
 
-  const deleteDailyLog = (projectId: string, logId: string) => {
-    setProjects((prev) =>
-      prev.map((project) =>
-        project.id === projectId
-          ? { ...project, dailyLogs: project.dailyLogs.filter((log) => log.id !== logId) }
-          : project
-      )
-    );
+  const writeEntries = async (
+    dailyLogId: string,
+    laborEntries: LaborEntry[],
+    equipmentEntries: EquipmentEntry[]
+  ) => {
+    if (laborEntries.length > 0) {
+      const { error } = await supabase.from('labor_entries').insert(
+        laborEntries.map((entry) => ({
+          daily_log_id: dailyLogId,
+          worker_name: entry.workerName,
+          trade: entry.trade,
+          st_hours: entry.stHours,
+          ot_hours: entry.otHours,
+        }))
+      );
+      if (error) throw error;
+    }
+
+    if (equipmentEntries.length > 0) {
+      const { error } = await supabase.from('equipment_entries').insert(
+        equipmentEntries.map((entry) => ({
+          daily_log_id: dailyLogId,
+          equipment_name: entry.equipmentName,
+          hours_used: entry.hoursUsed,
+        }))
+      );
+      if (error) throw error;
+    }
+  };
+
+  const deleteDailyLog = async (projectId: string, logId: string) => {
+    const { error } = await supabase.from('daily_logs').delete().eq('id', logId);
+    if (error) throw error;
+    await fetchProjects();
   };
 
   const getProject = (id: string) => projects.find((p) => p.id === id);
 
   return (
     <ProjectsContext.Provider
-      value={{ projects, addProject, addDailyLog, updateDailyLog, deleteDailyLog, getProject }}
+      value={{ projects, loading, addProject, addDailyLog, updateDailyLog, deleteDailyLog, getProject }}
     >
       {children}
     </ProjectsContext.Provider>

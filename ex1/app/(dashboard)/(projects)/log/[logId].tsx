@@ -19,9 +19,13 @@ export default function LogDetailScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => {
-          deleteDailyLog(projectId, logId);
-          router.back();
+        onPress: async () => {
+          try {
+            await deleteDailyLog(projectId, logId);
+            router.back();
+          } catch (error: any) {
+            Alert.alert('Error', error.message ?? 'Failed to delete daily log.');
+          }
         },
       },
     ]);
