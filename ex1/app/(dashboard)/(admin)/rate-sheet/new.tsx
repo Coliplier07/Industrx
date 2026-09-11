@@ -15,7 +15,7 @@ import {
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-type Category = 'labor' | 'equipment' | 'per_diem' | 'upcharge';
+type Category = 'labor' | 'equipment' | 'vehicle' | 'per_diem' | 'upcharge';
 type RateType = 'hourly' | 'daily' | 'per_job' | 'percentage';
 
 interface ExistingItem {
@@ -29,6 +29,7 @@ interface ExistingItem {
 const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
   { value: 'labor', label: 'Labor' },
   { value: 'equipment', label: 'Equipment' },
+  { value: 'vehicle', label: 'Vehicle' },
   { value: 'per_diem', label: 'Per Diem' },
   { value: 'upcharge', label: 'Upcharge' },
 ];

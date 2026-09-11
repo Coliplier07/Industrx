@@ -18,6 +18,8 @@ import { useProfile } from '@/context/ProfileContext';
 interface CrewMember {
   id: string;
   fullName: string;
+  role: 'pm' | 'employee';
+  isSelf: boolean;
   stHours: number;
   otHours: number;
 }
@@ -34,38 +36,55 @@ export default function CrewHoursScreen() {
     if (!profile) return;
     setLoading(true);
 
-    let query = supabase.from('profiles').select('id, full_name').eq('role', 'employee');
-    if (profile.role === 'pm') {
-      query = query.eq('manager_id', profile.id);
-    }
-    const { data: employees, error } = await query;
+    let people: { id: string; full_name: string; role: 'pm' | 'employee' }[];
 
-    if (error || !employees) {
-      console.error('Failed to load crew:', error?.message);
-      setCrew([]);
-      setLoading(false);
-      return;
+    if (profile.role === 'admin') {
+      // Admin can submit for anyone — every PM (their own hours) and employee.
+      const { data, error } = await supabase.from('profiles').select('id, full_name, role').in('role', ['pm', 'employee']);
+      if (error) {
+        console.error('Failed to load crew:', error.message);
+        setCrew([]);
+        setLoading(false);
+        return;
+      }
+      people = data ?? [];
+    } else {
+      // PM: their own hours plus their assigned employees.
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('role', 'employee')
+        .eq('manager_id', profile.id);
+      if (error) {
+        console.error('Failed to load crew:', error.message);
+        setCrew([]);
+        setLoading(false);
+        return;
+      }
+      people = [{ id: profile.id, full_name: profile.fullName, role: 'pm' }, ...(data ?? [])];
     }
 
     const dateStr = forDate.toISOString().slice(0, 10);
-    const employeeIds = employees.map((e) => e.id);
+    const peopleIds = people.map((p) => p.id);
     const { data: entries } =
-      employeeIds.length > 0
+      peopleIds.length > 0
         ? await supabase
             .from('timesheet_entries')
             .select('employee_id, st_hours, ot_hours')
-            .in('employee_id', employeeIds)
+            .in('employee_id', peopleIds)
             .eq('date', dateStr)
         : { data: [] };
 
     const entryByEmployee = new Map((entries ?? []).map((e: any) => [e.employee_id, e]));
 
     setCrew(
-      employees.map((e: any) => ({
-        id: e.id,
-        fullName: e.full_name || 'Unnamed',
-        stHours: Number(entryByEmployee.get(e.id)?.st_hours) || 0,
-        otHours: Number(entryByEmployee.get(e.id)?.ot_hours) || 0,
+      people.map((p) => ({
+        id: p.id,
+        fullName: p.full_name || 'Unnamed',
+        role: p.role,
+        isSelf: p.id === profile.id,
+        stHours: Number(entryByEmployee.get(p.id)?.st_hours) || 0,
+        otHours: Number(entryByEmployee.get(p.id)?.ot_hours) || 0,
       }))
     );
     setLoading(false);
@@ -168,7 +187,11 @@ export default function CrewHoursScreen() {
             <Text style={styles.sectionTitle}>Crew</Text>
             {crew.map((member) => (
               <View key={member.id} style={styles.memberRow}>
-                <Text style={styles.memberName}>{member.fullName}</Text>
+                <Text style={styles.memberName}>
+                  {member.fullName}
+                  {member.isSelf ? ' (You)' : ''}
+                </Text>
+                <Text style={styles.memberRole}>{member.role === 'pm' ? 'PM' : 'Employee'}</Text>
                 <View style={styles.counterRow}>
                   <View style={styles.counterContainer}>
                     <Text style={styles.counterLabel}>ST Hours</Text>
@@ -262,7 +285,8 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     marginTop: 8,
   },
-  memberName: { fontSize: 15, fontWeight: '600', color: '#1e1e1e', marginBottom: 8 },
+  memberName: { fontSize: 15, fontWeight: '600', color: '#1e1e1e', marginBottom: 2 },
+  memberRole: { fontSize: 12, color: '#6b7280', marginBottom: 8 },
   counterRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -80,20 +80,24 @@ export default function ProfileScreen() {
     setIsEditingContact(false);
   };
 
+  const showOptions = () =>
+    Alert.alert('Profile', undefined, [
+      { text: 'Edit Contact Info', onPress: () => setIsEditingContact(true) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <HeaderIconButton
-          name="ellipsis-horizontal"
-          onPress={() =>
-            Alert.alert('Profile', undefined, [
-              { text: 'Edit Contact Info', onPress: () => setIsEditingContact(true) },
-              { text: 'Cancel', style: 'cancel' },
-            ])
-          }
-          style={{ marginRight: 8 }}
-        />
+        <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />
       ),
+      unstable_headerRightItems: () => [
+        {
+          type: 'custom',
+          element: <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />,
+          hidesSharedBackground: true,
+        },
+      ],
     });
   }, [navigation]);
 

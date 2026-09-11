@@ -7,7 +7,7 @@ import HeaderIconButton from '@/components/HeaderIconButton';
 
 interface RateSheetItem {
   id: string;
-  category: 'labor' | 'equipment' | 'per_diem' | 'upcharge';
+  category: 'labor' | 'equipment' | 'vehicle' | 'per_diem' | 'upcharge';
   name: string;
   rateType: 'hourly' | 'daily' | 'per_job' | 'percentage';
   rate: number;
@@ -17,6 +17,7 @@ interface RateSheetItem {
 const CATEGORY_LABELS: Record<RateSheetItem['category'], string> = {
   labor: 'Labor',
   equipment: 'Equipment',
+  vehicle: 'Vehicles',
   per_diem: 'Per Diem',
   upcharge: 'Upcharges',
 };
@@ -100,7 +101,7 @@ export default function RateSheetScreen() {
     );
   }
 
-  const grouped = (['labor', 'equipment', 'per_diem', 'upcharge'] as const).map((category) => ({
+  const grouped = (['labor', 'equipment', 'vehicle', 'per_diem', 'upcharge'] as const).map((category) => ({
     category,
     items: items.filter((item) => item.category === category),
   }));
