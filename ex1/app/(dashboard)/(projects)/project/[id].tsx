@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Ima
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProjects, DailyLog, Receipt } from '@/context/ProjectsContext';
+import { useProfile } from '@/context/ProfileContext';
 import HeaderIconButton from '@/components/HeaderIconButton';
 
 export default function ProjectDetailScreen() {
@@ -10,7 +11,9 @@ export default function ProjectDetailScreen() {
   const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getProject, updateProject, deleteProject } = useProjects();
+  const { profile } = useProfile();
   const project = getProject(id);
+  const isAdmin = profile?.role === 'admin';
 
   const handleToggleStatus = async () => {
     if (!project) return;
@@ -53,8 +56,10 @@ export default function ProjectDetailScreen() {
         text: project.status === 'Active' ? 'Mark as Completed' : 'Mark as Active',
         onPress: handleToggleStatus,
       },
-      { text: 'Delete Project', style: 'destructive', onPress: handleDelete },
-      { text: 'Cancel', style: 'cancel' },
+      // Only an admin can delete a project — PMs can create/edit but not
+      // remove one, enforced by RLS too (company_projects_delete policy).
+      ...(isAdmin ? [{ text: 'Delete Project', style: 'destructive' as const, onPress: handleDelete }] : []),
+      { text: 'Cancel', style: 'cancel' as const },
     ]);
   };
 
