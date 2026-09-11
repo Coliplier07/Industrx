@@ -46,6 +46,10 @@ interface ProjectsContextValue {
   projects: Project[];
   loading: boolean;
   addProject: (name: string, location: string) => Promise<Project>;
+  updateProject: (
+    projectId: string,
+    updates: { name: string; location: string; status: Project['status'] }
+  ) => Promise<void>;
   addDailyLog: (projectId: string, log: Omit<DailyLog, 'id'>) => Promise<void>;
   updateDailyLog: (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => Promise<void>;
   deleteDailyLog: (projectId: string, logId: string) => Promise<void>;
@@ -211,6 +215,18 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     return newProject;
   };
 
+  const updateProject = async (
+    projectId: string,
+    updates: { name: string; location: string; status: Project['status'] }
+  ) => {
+    const { error } = await supabase
+      .from('projects')
+      .update({ name: updates.name, location: updates.location, status: updates.status })
+      .eq('id', projectId);
+    if (error) throw error;
+    await fetchProjects();
+  };
+
   const addDailyLog = async (projectId: string, log: Omit<DailyLog, 'id'>) => {
     const { data: logRow, error: logError } = await supabase
       .from('daily_logs')
@@ -354,6 +370,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         projects,
         loading,
         addProject,
+        updateProject,
         addDailyLog,
         updateDailyLog,
         deleteDailyLog,

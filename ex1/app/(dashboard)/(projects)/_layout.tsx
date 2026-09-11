@@ -11,8 +11,8 @@ export default function ProjectsStackLayout() {
       }}
     >
       <Stack.Screen name="jobs" options={{ title: 'Projects', headerLeft: () => null }} />
-      <Stack.Screen name="project/new" options={{ title: 'New Project' }} />
-      <Stack.Screen name="project/[id]" options={{ title: 'Project' }} />
+      <Stack.Screen name="project/new" />
+      <Stack.Screen name="project/[id]" />
       <Stack.Screen name="daily-log" />
       <Stack.Screen name="log/[logId]" />
       <Stack.Screen name="receipt/new" />

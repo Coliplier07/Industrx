@@ -1,14 +1,49 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Image } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Image, Alert } from 'react-native';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProjects, DailyLog, Receipt } from '@/context/ProjectsContext';
 
 export default function ProjectDetailScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getProject } = useProjects();
+  const { getProject, updateProject } = useProjects();
   const project = getProject(id);
+
+  const handleToggleStatus = async () => {
+    if (!project) return;
+    const nextStatus = project.status === 'Active' ? 'Completed' : 'Active';
+    try {
+      await updateProject(project.id, { name: project.name, location: project.location, status: nextStatus });
+    } catch (error: any) {
+      Alert.alert('Error', error.message ?? 'Failed to update project.');
+    }
+  };
+
+  const showOptions = () => {
+    if (!project) return;
+    Alert.alert('Project Options', undefined, [
+      { text: 'Edit', onPress: () => router.push({ pathname: '/project/new', params: { projectId: project.id } }) },
+      {
+        text: project.status === 'Active' ? 'Mark as Completed' : 'Mark as Active',
+        onPress: handleToggleStatus,
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      title: 'Project',
+      headerRight: () => (
+        <TouchableOpacity onPress={showOptions} style={styles.headerBtn}>
+          <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
+        </TouchableOpacity>
+      ),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
 
   if (!project) {
     return (
@@ -135,6 +170,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
   scrollContent: { padding: 20 },
   notFound: { padding: 20, color: '#6b7280', textAlign: 'center' },
+  headerBtn: { paddingHorizontal: 12, paddingVertical: 6 },
   card: {
     backgroundColor: '#fff',
     padding: 20,
