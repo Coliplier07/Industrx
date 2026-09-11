@@ -17,9 +17,15 @@ export default function DashboardLayout() {
   }
 
   const isAdmin = profile?.role === 'admin';
+  const isPmOrAdmin = profile?.role === 'pm' || profile?.role === 'admin';
+  const isEmployee = profile?.role === 'employee';
 
   return (
     <Tabs
+      // Tabs otherwise always focuses the first declared screen — which is
+      // (projects), hidden or not — so without this an employee would land
+      // on a Projects screen they can't even see the tab for.
+      initialRouteName={isEmployee ? '(my-hours)' : '(projects)'}
       screenOptions={{
         headerStyle: { backgroundColor: '#075eec' }, // IronClad Blue
         headerTintColor: '#fff',
@@ -32,8 +38,27 @@ export default function DashboardLayout() {
         name="(projects)"
         options={{
           headerShown: false, // The nested stack manages its own headers
+          href: isEmployee ? null : undefined, // employees don't get project/daily-log access
           tabBarLabel: 'Projects',
           tabBarIcon: ({ color, size }) => <Ionicons name="briefcase" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="(crew-hours)"
+        options={{
+          headerShown: false, // The nested stack manages its own headers
+          href: isPmOrAdmin ? undefined : null, // only PM/admin submit crew hours
+          tabBarLabel: 'Crew Hours',
+          tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="(my-hours)"
+        options={{
+          headerShown: false, // The nested stack manages its own headers
+          href: isEmployee ? undefined : null, // only employees see their own hours
+          tabBarLabel: 'My Hours',
+          tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

@@ -31,20 +31,29 @@ function Login() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: form.email,
       password: form.password,
     });
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       Alert.alert('Sign In Failed', error.message);
       return;
     }
 
+    // Employees don't have Projects access — send them straight to their
+    // hours instead of a screen they'd just bounce off of.
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    setLoading(false);
+
     // We use .replace so the PM cannot "go back" to the login screen
     // after they have already accessed the dashboard.
-    router.replace('/jobs');
+    router.replace(profileRow?.role === 'employee' ? '/hours' : '/jobs');
   };
 
   return (
