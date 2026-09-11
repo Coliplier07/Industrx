@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export interface LaborEntry {
@@ -79,10 +79,20 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Guards against a stale, slower fetch (e.g. one started for the previous
+  // account) resolving after a newer one and overwriting it with the wrong
+  // user's data. Only the most recently-started fetch is allowed to apply
+  // its result.
+  const fetchIdRef = useRef(0);
+
   const fetchProjects = async () => {
+    const fetchId = ++fetchIdRef.current;
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    if (fetchIdRef.current !== fetchId) return;
 
     if (!user) {
       setProjects([]);
@@ -94,6 +104,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       .from('projects')
       .select(PROJECT_SELECT)
       .order('created_at', { ascending: true });
+
+    if (fetchIdRef.current !== fetchId) return;
 
     if (error) {
       console.error('Failed to load projects:', error.message);
@@ -115,7 +127,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         fetchProjects();
       } else if (event === 'SIGNED_OUT') {
+        // Invalidate any fetch still in flight for the account we're
+        // leaving, so it can't land after this and repopulate stale data.
+        fetchIdRef.current += 1;
         setProjects([]);
+        setLoading(true);
       }
     });
 
