@@ -77,7 +77,16 @@ export default function ProjectDetailScreen() {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.receiptsRow}>
             {project.receipts.map((receipt) => (
-              <ReceiptThumbnail key={receipt.id} receipt={receipt} />
+              <ReceiptThumbnail
+                key={receipt.id}
+                receipt={receipt}
+                onPress={() =>
+                  router.push({
+                    pathname: '/receipt/[receiptId]',
+                    params: { projectId: project.id, receiptId: receipt.id },
+                  })
+                }
+              />
             ))}
           </ScrollView>
         )}
@@ -103,13 +112,13 @@ function DailyLogRow({ log, onPress }: { log: DailyLog; onPress: () => void }) {
   );
 }
 
-function ReceiptThumbnail({ receipt }: { receipt: Receipt }) {
+function ReceiptThumbnail({ receipt, onPress }: { receipt: Receipt; onPress: () => void }) {
   const dateLabel = new Date(receipt.date).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
   });
   return (
-    <View style={styles.receiptCard}>
+    <TouchableOpacity style={styles.receiptCard} onPress={onPress}>
       {receipt.signedUrl ? (
         <Image source={{ uri: receipt.signedUrl }} style={styles.receiptThumb} />
       ) : (
@@ -118,7 +127,7 @@ function ReceiptThumbnail({ receipt }: { receipt: Receipt }) {
         </View>
       )}
       <Text style={styles.receiptDate}>{dateLabel}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 

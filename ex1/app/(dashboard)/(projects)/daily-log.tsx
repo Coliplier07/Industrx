@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -17,6 +18,20 @@ import { useProjects, LaborEntry, EquipmentEntry } from '@/context/ProjectsConte
 
 export default function DailyLogScreen() {
   const { projectId, logId } = useLocalSearchParams<{ projectId: string; logId?: string }>();
+  const { loading } = useProjects();
+
+  // Don't mount the form until projects have actually loaded — otherwise,
+  // if this screen is reached before the initial fetch resolves, the form's
+  // initial state would snapshot "not found yet" and permanently miss the
+  // real existing values once data does arrive.
+  if (logId && loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#075eec" />
+      </View>
+    );
+  }
+
   // `key` forces a fresh component instance (and fresh initial state) whenever
   // the target log changes, since this hidden-tab screen would otherwise be
   // reused across navigations instead of remounted.
@@ -330,6 +345,7 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
+  loadingContainer: { flex: 1, backgroundColor: '#eBecf4', justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 16 },
   card: {
     backgroundColor: '#fff',

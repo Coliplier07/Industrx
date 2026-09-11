@@ -26,6 +26,7 @@ export interface DailyLog {
 export interface Receipt {
   id: string;
   date: string;
+  amount: number;
   imagePath: string;
   // Private-bucket files need a freshly-signed URL to actually display;
   // null until attachSignedUrls() fills it in after each fetch.
@@ -48,7 +49,13 @@ interface ProjectsContextValue {
   addDailyLog: (projectId: string, log: Omit<DailyLog, 'id'>) => Promise<void>;
   updateDailyLog: (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => Promise<void>;
   deleteDailyLog: (projectId: string, logId: string) => Promise<void>;
-  addReceipt: (projectId: string, imageUri: string, date: string) => Promise<void>;
+  addReceipt: (projectId: string, imageUri: string, date: string, amount: number) => Promise<void>;
+  updateReceipt: (
+    projectId: string,
+    receiptId: string,
+    updates: { date: string; amount: number; newImageUri?: string }
+  ) => Promise<void>;
+  deleteReceipt: (projectId: string, receiptId: string) => Promise<void>;
   getProject: (id: string) => Project | undefined;
 }
 
@@ -85,6 +92,7 @@ function mapProjectRow(row: any): Project {
       .map((receipt: any): Receipt => ({
         id: receipt.id,
         date: receipt.date,
+        amount: Number(receipt.amount) || 0,
         imagePath: receipt.image_path,
         signedUrl: null,
       }))
@@ -266,7 +274,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     await fetchProjects();
   };
 
-  const addReceipt = async (projectId: string, imageUri: string, date: string) => {
+  const uploadReceiptImage = async (projectId: string, imageUri: string): Promise<string> => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -283,10 +291,57 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       .upload(path, blob, { contentType: 'image/jpeg' });
     if (uploadError) throw uploadError;
 
+    return path;
+  };
+
+  const addReceipt = async (projectId: string, imageUri: string, date: string, amount: number) => {
+    const path = await uploadReceiptImage(projectId, imageUri);
+
     const { error: insertError } = await supabase
       .from('receipts')
-      .insert({ project_id: projectId, date, image_path: path });
+      .insert({ project_id: projectId, date, amount, image_path: path });
     if (insertError) throw insertError;
+
+    await fetchProjects();
+  };
+
+  const updateReceipt = async (
+    projectId: string,
+    receiptId: string,
+    updates: { date: string; amount: number; newImageUri?: string }
+  ) => {
+    const existing = getProject(projectId)?.receipts.find((r) => r.id === receiptId);
+
+    const updateFields: { date: string; amount: number; image_path?: string } = {
+      date: updates.date,
+      amount: updates.amount,
+    };
+
+    if (updates.newImageUri) {
+      updateFields.image_path = await uploadReceiptImage(projectId, updates.newImageUri);
+    }
+
+    const { error } = await supabase.from('receipts').update(updateFields).eq('id', receiptId);
+    if (error) throw error;
+
+    // Best-effort cleanup of the old file — the update above already
+    // succeeded, so don't fail the whole operation if this doesn't.
+    if (updates.newImageUri && existing?.imagePath) {
+      await supabase.storage.from('receipts').remove([existing.imagePath]);
+    }
+
+    await fetchProjects();
+  };
+
+  const deleteReceipt = async (projectId: string, receiptId: string) => {
+    const existing = getProject(projectId)?.receipts.find((r) => r.id === receiptId);
+
+    const { error } = await supabase.from('receipts').delete().eq('id', receiptId);
+    if (error) throw error;
+
+    if (existing?.imagePath) {
+      await supabase.storage.from('receipts').remove([existing.imagePath]);
+    }
 
     await fetchProjects();
   };
@@ -303,6 +358,8 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         updateDailyLog,
         deleteDailyLog,
         addReceipt,
+        updateReceipt,
+        deleteReceipt,
         getProject,
       }}
     >
