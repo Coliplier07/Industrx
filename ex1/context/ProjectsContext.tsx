@@ -58,6 +58,7 @@ interface ProjectsContextValue {
     projectId: string,
     updates: { name: string; location: string; status: Project['status'] }
   ) => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
   addDailyLog: (projectId: string, log: Omit<DailyLog, 'id'>) => Promise<void>;
   updateDailyLog: (projectId: string, logId: string, updates: Omit<DailyLog, 'id'>) => Promise<void>;
   deleteDailyLog: (projectId: string, logId: string) => Promise<void>;
@@ -391,6 +392,23 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     await fetchProjects();
   };
 
+  const deleteProject = async (projectId: string) => {
+    const existing = getProject(projectId);
+    const receiptPaths = existing?.receipts.map((r) => r.imagePath).filter(Boolean) ?? [];
+
+    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+    if (error) throw error;
+
+    // Best-effort cleanup — the project (and its daily_logs/receipts rows
+    // via cascade) is already gone, so don't fail the whole operation if
+    // removing the now-orphaned storage files doesn't succeed.
+    if (receiptPaths.length > 0) {
+      await supabase.storage.from('receipts').remove(receiptPaths);
+    }
+
+    await fetchProjects();
+  };
+
   const getProject = (id: string) => projects.find((p) => p.id === id);
 
   return (
@@ -400,6 +418,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         loading,
         addProject,
         updateProject,
+        deleteProject,
         addDailyLog,
         updateDailyLog,
         deleteDailyLog,

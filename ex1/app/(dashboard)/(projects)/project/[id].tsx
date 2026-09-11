@@ -9,7 +9,7 @@ export default function ProjectDetailScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getProject, updateProject } = useProjects();
+  const { getProject, updateProject, deleteProject } = useProjects();
   const project = getProject(id);
 
   const handleToggleStatus = async () => {
@@ -22,6 +22,29 @@ export default function ProjectDetailScreen() {
     }
   };
 
+  const handleDelete = () => {
+    if (!project) return;
+    Alert.alert(
+      'Delete Project',
+      'This deletes the project and everything in it — daily logs, receipts, all of it. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteProject(project.id);
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Error', error.message ?? 'Failed to delete project.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const showOptions = () => {
     if (!project) return;
     Alert.alert('Project Options', undefined, [
@@ -30,6 +53,7 @@ export default function ProjectDetailScreen() {
         text: project.status === 'Active' ? 'Mark as Completed' : 'Mark as Active',
         onPress: handleToggleStatus,
       },
+      { text: 'Delete Project', style: 'destructive', onPress: handleDelete },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
