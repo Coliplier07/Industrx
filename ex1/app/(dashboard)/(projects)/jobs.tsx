@@ -58,7 +58,9 @@ function ProjectCard({ project, onPress }: { project: Project; onPress: () => vo
   return (
     <TouchableOpacity style={styles.projectCard} onPress={onPress}>
       <View style={styles.projectCardTop}>
-        <Text style={styles.label}>{project.status.toUpperCase()}</Text>
+        <Text style={[styles.label, project.status === 'Active' && styles.labelActive]}>
+          {project.status.toUpperCase()}
+        </Text>
         <View
           style={[
             styles.statusDot,
@@ -119,6 +121,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
+  labelActive: { color: '#34C759' },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   statusActive: { backgroundColor: '#34C759' },
   statusCompleted: { backgroundColor: '#8e8e93' },
