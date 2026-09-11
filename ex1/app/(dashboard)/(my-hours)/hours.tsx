@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Act
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from '@/context/ProfileContext';
+import { getWeekRange, formatWeekRange } from '@/lib/week';
 
 interface TimesheetEntry {
   id: string;
@@ -18,27 +19,24 @@ const STATUS_LABELS: Record<TimesheetEntry['status'], string> = {
   disputed: 'Disputed',
 };
 
-function getWeekRange(referenceDate: Date): { start: string; end: string } {
-  const day = referenceDate.getDay(); // 0 = Sunday
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(referenceDate);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() + diffToMonday);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  return { start: monday.toISOString().slice(0, 10), end: sunday.toISOString().slice(0, 10) };
-}
-
 export default function MyHoursScreen() {
   const router = useRouter();
   const { profile } = useProfile();
   const [entries, setEntries] = useState<TimesheetEntry[]>([]);
+  const [weekLabel, setWeekLabel] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchEntries = React.useCallback(async () => {
     if (!profile) return;
     setLoading(true);
-    const { start, end } = getWeekRange(new Date());
+
+    const { data: company } = await supabase
+      .from('companies')
+      .select('pay_period_start_day')
+      .eq('id', profile.companyId)
+      .single();
+    const { start, end } = getWeekRange(new Date(), company?.pay_period_start_day ?? 0);
+    setWeekLabel(formatWeekRange(start, end));
 
     const { data, error } = await supabase
       .from('timesheet_entries')
@@ -91,11 +89,12 @@ export default function MyHoursScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.tallyCard}>
-          <Text style={styles.tallyLabel}>This Week</Text>
+          <Text style={styles.tallyLabel}>This Pay Period</Text>
           <Text style={styles.tallyValue}>{(totalSt + totalOt).toFixed(1)} hrs</Text>
           <Text style={styles.tallyBreakdown}>
             {totalSt.toFixed(1)} ST · {totalOt.toFixed(1)} OT
           </Text>
+          {!!weekLabel && <Text style={styles.weekLabel}>{weekLabel}</Text>}
         </View>
 
         {entries.length === 0 ? (
@@ -146,6 +145,7 @@ const styles = StyleSheet.create({
   tallyLabel: { fontSize: 13, fontWeight: '700', color: '#dbe8ff', textTransform: 'uppercase' },
   tallyValue: { fontSize: 36, fontWeight: '800', color: '#fff', marginTop: 4 },
   tallyBreakdown: { fontSize: 14, color: '#dbe8ff', marginTop: 4 },
+  weekLabel: { fontSize: 12, color: '#dbe8ff', marginTop: 8, opacity: 0.85 },
   emptyText: { color: '#6b7280', textAlign: 'center', marginTop: 24 },
   card: {
     flexDirection: 'row',

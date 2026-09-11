@@ -16,6 +16,8 @@ export default function CrewHoursStackLayout() {
         name="index"
         options={{ title: 'Crew Hours', headerLeft: () => null, unstable_headerLeftItems: () => [] }}
       />
+      <Stack.Screen name="submit" options={{ title: 'Submit Hours' }} />
+      <Stack.Screen name="report" options={{ title: 'Weekly Report' }} />
     </Stack>
   );
 }

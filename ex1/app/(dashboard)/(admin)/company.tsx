@@ -17,12 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from '@/context/ProfileContext';
 import HeaderIconButton from '@/components/HeaderIconButton';
+import { WEEKDAY_LABELS } from '@/lib/week';
 
 export default function CompanySettingsScreen() {
   const navigation = useNavigation();
   const { profile } = useProfile();
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [payPeriodStartDay, setPayPeriodStartDay] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -31,12 +33,13 @@ export default function CompanySettingsScreen() {
     if (!profile) return;
     const { data, error } = await supabase
       .from('companies')
-      .select('name, location')
+      .select('name, location, pay_period_start_day')
       .eq('id', profile.companyId)
       .single();
     if (!error && data) {
       setName(data.name);
       setLocation(data.location ?? '');
+      setPayPeriodStartDay(data.pay_period_start_day ?? 0);
     }
     setLoading(false);
   };
@@ -78,7 +81,11 @@ export default function CompanySettingsScreen() {
     setSaving(true);
     const { error } = await supabase
       .from('companies')
-      .update({ name: name.trim(), location: location.trim() || null })
+      .update({
+        name: name.trim(),
+        location: location.trim() || null,
+        pay_period_start_day: payPeriodStartDay,
+      })
       .eq('id', profile.companyId);
     setSaving(false);
 
@@ -128,6 +135,21 @@ export default function CompanySettingsScreen() {
                   onChangeText={setLocation}
                 />
 
+                <Text style={styles.label}>Pay Period Starts On</Text>
+                <View style={styles.dayRow}>
+                  {WEEKDAY_LABELS.map((label, index) => (
+                    <TouchableOpacity
+                      key={label}
+                      style={[styles.dayBtn, payPeriodStartDay === index && styles.dayBtnSelected]}
+                      onPress={() => setPayPeriodStartDay(index)}
+                    >
+                      <Text style={[styles.dayBtnText, payPeriodStartDay === index && styles.dayBtnTextSelected]}>
+                        {label.slice(0, 3)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
                 <TouchableOpacity
                   style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
                   onPress={handleSave}
@@ -149,6 +171,10 @@ export default function CompanySettingsScreen() {
                 <View style={styles.infoRow}>
                   <Ionicons name="location-outline" size={18} color="#6b7280" />
                   <Text style={styles.infoText}>{location || '—'}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Ionicons name="calendar-outline" size={18} color="#6b7280" />
+                  <Text style={styles.infoText}>Pay period starts {WEEKDAY_LABELS[payPeriodStartDay]}</Text>
                 </View>
               </>
             )}
@@ -179,6 +205,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
   },
+  dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  dayBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
+    backgroundColor: '#f8f9fa',
+  },
+  dayBtnSelected: { backgroundColor: '#075eec20', borderColor: '#075eec' },
+  dayBtnText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  dayBtnTextSelected: { color: '#075eec' },
   saveBtn: {
     backgroundColor: '#075eec',
     borderRadius: 10,
