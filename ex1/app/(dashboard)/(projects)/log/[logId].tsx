@@ -67,7 +67,11 @@ export default function LogDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
 
         <View style={styles.card}>
           <Text style={styles.dateLabel}>{dateLabel}</Text>

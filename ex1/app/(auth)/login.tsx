@@ -1,6 +1,6 @@
-import { Text, View, SafeAreaView, StyleSheet, Image, TextInput, TouchableOpacity, Alert } from "react-native";
+import { Text, View, SafeAreaView, StyleSheet, Image, TextInput, TouchableOpacity, Alert, ScrollView } from "react-native";
 import React, { useState } from "react";
-import { useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
 
@@ -43,7 +43,11 @@ function Login() {
   return  (
     //Styles for Image
     <SafeAreaView style={{flex: 1, backgroundColor:'#eBecf4' }}>
-      <View style ={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <Image
             source={{ uri: 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fi.pinimg.com%2F736x%2F91%2F99%2Fea%2F9199ea3ba9afea2b28c2af622dbba19d.jpg&f=1&nofb=1&ipt=0a409ec9543cf3a08ff2c02758278fa053a427334994de7fe2352a0dc0b97231'}}
@@ -90,32 +94,14 @@ function Login() {
           <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Sign in'}</Text>
         </View>
       </TouchableOpacity>
+
+      <Link href="/(auth)/create" asChild>
+        <TouchableOpacity>
+          <Text style={styles.subtitle}>Create an Account</Text>
+        </TouchableOpacity>
+      </Link>
     </View>
-
-
-
-
-
-          </View>
-
-
-
-
-
-
-
-
-    
-      
-
-
-
-
-      
-
-
-
-
+      </ScrollView>
     </SafeAreaView>
   );
 }

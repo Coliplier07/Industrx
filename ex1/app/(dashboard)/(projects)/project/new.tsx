@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProjects } from '@/context/ProjectsContext';
 
@@ -20,29 +20,31 @@ export default function NewProjectScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.label}>Project Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Coffeyville Resources"
-          placeholderTextColor="#8e8e93"
-          value={name}
-          onChangeText={setName}
-        />
+      <ScrollView keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
+          <Text style={styles.label}>Project Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Coffeyville Resources"
+            placeholderTextColor="#8e8e93"
+            value={name}
+            onChangeText={setName}
+          />
 
-        <Text style={styles.label}>Location (optional)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Coffeyville, KS"
-          placeholderTextColor="#8e8e93"
-          value={location}
-          onChangeText={setLocation}
-        />
+          <Text style={styles.label}>Location (optional)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Coffeyville, KS"
+            placeholderTextColor="#8e8e93"
+            value={location}
+            onChangeText={setLocation}
+          />
 
-        <TouchableOpacity style={styles.createBtn} onPress={handleCreate}>
-          <Text style={styles.createBtnText}>Create Project</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.createBtn} onPress={handleCreate}>
+            <Text style={styles.createBtnText}>Create Project</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

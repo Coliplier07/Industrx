@@ -20,7 +20,11 @@ export default function ProjectDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
 
         <View style={styles.card}>
           <Text style={styles.projectName}>{project.name}</Text>
