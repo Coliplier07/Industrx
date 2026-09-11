@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import HeaderIconButton from '@/components/HeaderIconButton';
 
 interface RateSheetItem {
   id: string;
@@ -65,18 +66,29 @@ export default function RateSheetScreen() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchItems();
-  }, []);
+  // Re-fetch every time this screen regains focus (not just on first mount),
+  // so returning from Add/Edit Rate shows the up-to-date list.
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchItems();
+    }, [])
+  );
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={() => router.push('/rate-sheet/new')} style={styles.headerAddBtn}>
-          <Ionicons name="add" size={22} color="#fff" />
-        </TouchableOpacity>
+        <HeaderIconButton name="add" onPress={() => router.push('/rate-sheet/new')} style={{ marginRight: 8 }} />
       ),
+      unstable_headerRightItems: () => [
+        {
+          type: 'custom',
+          element: (
+            <HeaderIconButton name="add" onPress={() => router.push('/rate-sheet/new')} style={{ marginRight: 8 }} />
+          ),
+          hidesSharedBackground: true,
+        },
+      ],
     });
   }, [navigation, router]);
 
@@ -105,13 +117,20 @@ export default function RateSheetScreen() {
               <View key={group.category} style={styles.section}>
                 <Text style={styles.sectionTitle}>{CATEGORY_LABELS[group.category]}</Text>
                 {group.items.map((item) => (
-                  <View key={item.id} style={styles.card}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemRate}>
-                      {formatRate(item)}
-                      {item.otRate !== null ? ` · OT $${item.otRate.toFixed(2)}/hr` : ''}
-                    </Text>
-                  </View>
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.card}
+                    onPress={() => router.push({ pathname: '/rate-sheet/new', params: { rateItemId: item.id } })}
+                  >
+                    <View>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemRate}>
+                        {formatRate(item)}
+                        {item.otRate !== null ? ` · OT $${item.otRate.toFixed(2)}/hr` : ''}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#c7ccd1" />
+                  </TouchableOpacity>
                 ))}
               </View>
             ))
@@ -131,7 +150,6 @@ const styles = StyleSheet.create({
   centered: { justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 20 },
   emptyText: { color: '#6b7280', textAlign: 'center', marginTop: 40 },
-  headerAddBtn: { paddingHorizontal: 12, paddingVertical: 6 },
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1e1e1e', marginBottom: 8 },
   card: {

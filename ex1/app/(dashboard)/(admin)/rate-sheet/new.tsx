@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,12 +10,21 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
 type Category = 'labor' | 'equipment' | 'per_diem' | 'upcharge';
 type RateType = 'hourly' | 'daily' | 'per_job' | 'percentage';
+
+interface ExistingItem {
+  category: Category;
+  name: string;
+  rateType: RateType;
+  rate: string;
+  otRate: string;
+}
 
 const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
   { value: 'labor', label: 'Labor' },
@@ -31,14 +40,63 @@ const RATE_TYPE_OPTIONS: { value: RateType; label: string }[] = [
   { value: 'percentage', label: 'Percentage' },
 ];
 
-export default function AddRateSheetItemScreen() {
-  const router = useRouter();
+function formatDecimal(value: string): string {
+  if (!value.trim()) return value;
+  const parsed = parseFloat(value);
+  return Number.isNaN(parsed) ? value : parsed.toFixed(2);
+}
 
-  const [category, setCategory] = useState<Category>('labor');
-  const [name, setName] = useState('');
-  const [rateType, setRateType] = useState<RateType>('hourly');
-  const [rate, setRate] = useState('');
-  const [otRate, setOtRate] = useState('');
+export default function RateSheetItemScreen() {
+  const { rateItemId } = useLocalSearchParams<{ rateItemId?: string }>();
+  const navigation = useNavigation();
+  const [existingItem, setExistingItem] = useState<ExistingItem | null>(null);
+  const [loadingItem, setLoadingItem] = useState(!!rateItemId);
+
+  useEffect(() => {
+    if (!rateItemId) return;
+    const fetchItem = async () => {
+      const { data, error } = await supabase.from('rate_sheet_items').select('*').eq('id', rateItemId).single();
+      if (!error && data) {
+        setExistingItem({
+          category: data.category,
+          name: data.name,
+          rateType: data.rate_type,
+          rate: String(data.rate),
+          otRate: data.ot_rate !== null ? String(data.ot_rate) : '',
+        });
+      }
+      setLoadingItem(false);
+    };
+    fetchItem();
+  }, [rateItemId]);
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({ title: rateItemId ? 'Edit Rate' : 'Add Rate' });
+  }, [navigation, rateItemId]);
+
+  // Don't mount the form until an existing item (if editing) has actually
+  // loaded — otherwise the form's initial state would snapshot "not found
+  // yet" and permanently miss the real saved values.
+  if (rateItemId && loadingItem) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#075eec" />
+      </View>
+    );
+  }
+
+  return <RateSheetForm key={rateItemId ?? 'new'} rateItemId={rateItemId} existingItem={existingItem} />;
+}
+
+function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; existingItem: ExistingItem | null }) {
+  const router = useRouter();
+  const isEditing = !!existingItem;
+
+  const [category, setCategory] = useState<Category>(existingItem?.category ?? 'labor');
+  const [name, setName] = useState(existingItem?.name ?? '');
+  const [rateType, setRateType] = useState<RateType>(existingItem?.rateType ?? 'hourly');
+  const [rate, setRate] = useState(existingItem?.rate ?? '');
+  const [otRate, setOtRate] = useState(existingItem?.otRate ?? '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -55,6 +113,28 @@ export default function AddRateSheetItemScreen() {
     }
 
     setSaving(true);
+
+    if (isEditing && rateItemId) {
+      const { error } = await supabase
+        .from('rate_sheet_items')
+        .update({
+          category,
+          name: name.trim(),
+          rate_type: rateType,
+          rate: parsedRate,
+          ot_rate: category === 'labor' ? parsedOtRate : null,
+        })
+        .eq('id', rateItemId);
+      setSaving(false);
+
+      if (error) {
+        Alert.alert('Error', error.message);
+        return;
+      }
+      router.back();
+      return;
+    }
+
     const { data: userData } = await supabase.auth.getUser();
     const { data: profile } = await supabase
       .from('profiles')
@@ -136,6 +216,7 @@ export default function AddRateSheetItemScreen() {
               keyboardType="decimal-pad"
               value={rate}
               onChangeText={setRate}
+              onBlur={() => setRate((current) => formatDecimal(current))}
             />
 
             {category === 'labor' && (
@@ -148,6 +229,7 @@ export default function AddRateSheetItemScreen() {
                   keyboardType="decimal-pad"
                   value={otRate}
                   onChangeText={setOtRate}
+                  onBlur={() => setOtRate((current) => formatDecimal(current))}
                 />
               </>
             )}
@@ -157,7 +239,9 @@ export default function AddRateSheetItemScreen() {
               onPress={handleSave}
               disabled={saving}
             >
-              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Add to Rate Sheet'}</Text>
+              <Text style={styles.saveBtnText}>
+                {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Add to Rate Sheet'}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -168,6 +252,7 @@ export default function AddRateSheetItemScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
+  loadingContainer: { flex: 1, backgroundColor: '#eBecf4', justifyContent: 'center', alignItems: 'center' },
   keyboardAvoider: { flex: 1 },
   card: {
     backgroundColor: '#fff',

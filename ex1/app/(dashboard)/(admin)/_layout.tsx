@@ -21,7 +21,7 @@ export default function AdminStackLayout() {
       <Stack.Screen name="team" options={{ title: 'Team' }} />
       <Stack.Screen name="team/new" options={{ title: 'Add Person' }} />
       <Stack.Screen name="rate-sheet" options={{ title: 'Rate Sheet' }} />
-      <Stack.Screen name="rate-sheet/new" options={{ title: 'Add Rate' }} />
+      <Stack.Screen name="rate-sheet/new" />
     </Stack>
   );
 }

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import HeaderIconButton from '@/components/HeaderIconButton';
 
 interface Member {
   id: string;
@@ -41,18 +42,27 @@ export default function TeamScreen() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchMembers();
-  }, []);
+  // Re-fetch every time this screen regains focus (not just on first mount),
+  // so returning from Add Person shows the up-to-date list.
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchMembers();
+    }, [])
+  );
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={() => router.push('/team/new')} style={styles.headerAddBtn}>
-          <Ionicons name="add" size={22} color="#fff" />
-        </TouchableOpacity>
+        <HeaderIconButton name="add" onPress={() => router.push('/team/new')} style={{ marginRight: 8 }} />
       ),
+      unstable_headerRightItems: () => [
+        {
+          type: 'custom',
+          element: <HeaderIconButton name="add" onPress={() => router.push('/team/new')} style={{ marginRight: 8 }} />,
+          hidesSharedBackground: true,
+        },
+      ],
     });
   }, [navigation, router]);
 
@@ -101,7 +111,6 @@ const styles = StyleSheet.create({
   centered: { justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 20 },
   emptyText: { color: '#6b7280', textAlign: 'center', marginTop: 40 },
-  headerAddBtn: { paddingHorizontal: 12, paddingVertical: 6 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
