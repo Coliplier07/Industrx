@@ -141,7 +141,8 @@ function DailyLogRow({ log, onPress }: { log: DailyLog; onPress: () => void }) {
       </Text>
       <Text style={styles.logMeta}>
         {log.laborEntries.length} worker{log.laborEntries.length === 1 ? '' : 's'} ·{' '}
-        {log.equipmentEntries.length} equipment
+        {log.equipmentEntries.length} equipment · {log.vehicleEntries.length} vehicle
+        {log.vehicleEntries.length === 1 ? '' : 's'}
       </Text>
     </TouchableOpacity>
   );

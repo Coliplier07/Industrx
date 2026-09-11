@@ -15,12 +15,19 @@ export interface EquipmentEntry {
   hoursUsed: number;
 }
 
+export interface VehicleEntry {
+  id: string;
+  vehicleName: string;
+  hoursUsed: number;
+}
+
 export interface DailyLog {
   id: string;
   date: string;
   workDescription: string;
   laborEntries: LaborEntry[];
   equipmentEntries: EquipmentEntry[];
+  vehicleEntries: VehicleEntry[];
 }
 
 export interface Receipt {
@@ -90,6 +97,11 @@ function mapProjectRow(row: any): Project {
           equipmentName: entry.equipment_name ?? '',
           hoursUsed: Number(entry.hours_used) || 0,
         })),
+        vehicleEntries: (log.vehicle_entries ?? []).map((entry: any): VehicleEntry => ({
+          id: entry.id,
+          vehicleName: entry.vehicle_name ?? '',
+          hoursUsed: Number(entry.hours_used) || 0,
+        })),
       }))
       .sort((a: DailyLog, b: DailyLog) => (a.date < b.date ? 1 : -1)),
     receipts: (row.receipts ?? [])
@@ -127,7 +139,8 @@ async function attachSignedUrls(projects: Project[]): Promise<Project[]> {
   }));
 }
 
-const PROJECT_SELECT = '*, daily_logs(*, labor_entries(*), equipment_entries(*)), receipts(*)';
+const PROJECT_SELECT =
+  '*, daily_logs(*, labor_entries(*), equipment_entries(*), vehicle_entries(*)), receipts(*)';
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -235,7 +248,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       .single();
     if (logError) throw logError;
 
-    await writeEntries(logRow.id, log.laborEntries, log.equipmentEntries);
+    await writeEntries(logRow.id, log.laborEntries, log.equipmentEntries, log.vehicleEntries);
     await fetchProjects();
   };
 
@@ -250,14 +263,16 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     // which entries changed, since the form re-submits the full set each time.
     await supabase.from('labor_entries').delete().eq('daily_log_id', logId);
     await supabase.from('equipment_entries').delete().eq('daily_log_id', logId);
-    await writeEntries(logId, updates.laborEntries, updates.equipmentEntries);
+    await supabase.from('vehicle_entries').delete().eq('daily_log_id', logId);
+    await writeEntries(logId, updates.laborEntries, updates.equipmentEntries, updates.vehicleEntries);
     await fetchProjects();
   };
 
   const writeEntries = async (
     dailyLogId: string,
     laborEntries: LaborEntry[],
-    equipmentEntries: EquipmentEntry[]
+    equipmentEntries: EquipmentEntry[],
+    vehicleEntries: VehicleEntry[]
   ) => {
     if (laborEntries.length > 0) {
       const { error } = await supabase.from('labor_entries').insert(
@@ -277,6 +292,17 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         equipmentEntries.map((entry) => ({
           daily_log_id: dailyLogId,
           equipment_name: entry.equipmentName,
+          hours_used: entry.hoursUsed,
+        }))
+      );
+      if (error) throw error;
+    }
+
+    if (vehicleEntries.length > 0) {
+      const { error } = await supabase.from('vehicle_entries').insert(
+        vehicleEntries.map((entry) => ({
+          daily_log_id: dailyLogId,
+          vehicle_name: entry.vehicleName,
           hours_used: entry.hoursUsed,
         }))
       );

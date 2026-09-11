@@ -15,7 +15,7 @@ import {
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useProjects, LaborEntry, EquipmentEntry } from '@/context/ProjectsContext';
+import { useProjects, LaborEntry, EquipmentEntry, VehicleEntry } from '@/context/ProjectsContext';
 
 export default function DailyLogScreen() {
   const { projectId, logId } = useLocalSearchParams<{ projectId: string; logId?: string }>();
@@ -61,6 +61,9 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
   const [equipmentEntries, setEquipmentEntries] = useState<EquipmentEntry[]>(
     existingLog?.equipmentEntries ?? [{ id: '1', equipmentName: '', hoursUsed: 8 }]
   );
+  const [vehicleEntries, setVehicleEntries] = useState<VehicleEntry[]>(
+    existingLog?.vehicleEntries ?? [{ id: '1', vehicleName: '', hoursUsed: 8 }]
+  );
   const [saving, setSaving] = useState(false);
 
   // --- Labor Handlers ---
@@ -103,6 +106,26 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
     }
   };
 
+  // --- Vehicle Handlers ---
+  const addVehicleRow = () => {
+    setVehicleEntries([
+      ...vehicleEntries,
+      { id: Date.now().toString(), vehicleName: '', hoursUsed: 8 },
+    ]);
+  };
+
+  const updateVehicle = (id: string, field: keyof VehicleEntry, value: any) => {
+    setVehicleEntries(
+      vehicleEntries.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
+    );
+  };
+
+  const removeVehicle = (id: string) => {
+    if (vehicleEntries.length > 1) {
+      setVehicleEntries(vehicleEntries.filter((entry) => entry.id !== id));
+    }
+  };
+
   // --- Date Handler ---
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -131,6 +154,7 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
       workDescription,
       laborEntries,
       equipmentEntries,
+      vehicleEntries,
     };
 
     setSaving(true);
@@ -275,6 +299,56 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
 
                 {laborEntries.length > 1 && (
                   <TouchableOpacity style={styles.deleteBtn} onPress={() => removeLabor(item.id)}>
+                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Vehicle Hours Section */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.sectionTitle}>Vehicle Tracking</Text>
+            <TouchableOpacity style={styles.addBtn} onPress={addVehicleRow}>
+              <Ionicons name="add-circle" size={20} color="#075eec" />
+              <Text style={styles.addBtnText}>Add Vehicle</Text>
+            </TouchableOpacity>
+          </View>
+
+          {vehicleEntries.map((item) => (
+            <View key={item.id} style={styles.entryRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Vehicle Name / Unit #"
+                placeholderTextColor="#8e8e93"
+                value={item.vehicleName}
+                onChangeText={(val) => updateVehicle(item.id, 'vehicleName', val)}
+              />
+
+              <View style={styles.counterRow}>
+                <View style={styles.counterContainer}>
+                  <Text style={styles.counterLabel}>Hours Used</Text>
+                  <View style={styles.counterControls}>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => updateVehicle(item.id, 'hoursUsed', Math.max(0, item.hoursUsed - 0.5))}
+                    >
+                      <Text style={styles.stepBtnText}>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.counterValue}>{item.hoursUsed}</Text>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => updateVehicle(item.id, 'hoursUsed', item.hoursUsed + 0.5)}
+                    >
+                      <Text style={styles.stepBtnText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {vehicleEntries.length > 1 && (
+                  <TouchableOpacity style={styles.deleteBtn} onPress={() => removeVehicle(item.id)}>
                     <Ionicons name="trash-outline" size={22} color="#FF3B30" />
                   </TouchableOpacity>
                 )}

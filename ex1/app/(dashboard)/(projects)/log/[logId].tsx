@@ -94,6 +94,16 @@ export default function LogDetailScreen() {
           ))}
         </View>
 
+        <Text style={styles.sectionTitle}>Vehicle Tracking</Text>
+        <View style={styles.card}>
+          {log.vehicleEntries.map((entry) => (
+            <View key={entry.id} style={styles.entryRow}>
+              <Text style={styles.entryName}>{entry.vehicleName || 'Unnamed Vehicle'}</Text>
+              <Text style={styles.entryMeta}>{entry.hoursUsed} hours used</Text>
+            </View>
+          ))}
+        </View>
+
         <Text style={styles.sectionTitle}>Equipment Usage</Text>
         <View style={styles.card}>
           {log.equipmentEntries.map((entry) => (
