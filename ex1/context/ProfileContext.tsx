@@ -5,6 +5,7 @@ export interface Profile {
   id: string;
   companyId: string;
   fullName: string;
+  phone: string | null;
   role: 'admin' | 'pm' | 'employee';
   managerId: string | null;
   avatarPath: string | null;
@@ -26,6 +27,7 @@ function mapProfileRow(row: any): Profile {
     id: row.id,
     companyId: row.company_id,
     fullName: row.full_name ?? '',
+    phone: row.phone,
     role: row.role,
     managerId: row.manager_id,
     avatarPath: row.avatar_path,

@@ -17,6 +17,7 @@ export default function AdminStackLayout() {
         name="index"
         options={{ title: 'Admin', headerLeft: () => null, unstable_headerLeftItems: () => [] }}
       />
+      <Stack.Screen name="company" options={{ title: 'Company' }} />
       <Stack.Screen name="team" options={{ title: 'Team' }} />
       <Stack.Screen name="team/new" options={{ title: 'Add Person' }} />
       <Stack.Screen name="rate-sheet" options={{ title: 'Rate Sheet' }} />

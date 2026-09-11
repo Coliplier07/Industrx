@@ -9,6 +9,17 @@ export default function AdminHubScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <TouchableOpacity style={styles.card} onPress={() => router.push('/company')}>
+          <View style={styles.cardIcon}>
+            <Ionicons name="business" size={26} color="#075eec" />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle}>Company</Text>
+            <Text style={styles.cardSubtitle}>Company name and details</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#c7ccd1" />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.card} onPress={() => router.push('/team')}>
           <View style={styles.cardIcon}>
             <Ionicons name="people" size={26} color="#075eec" />
