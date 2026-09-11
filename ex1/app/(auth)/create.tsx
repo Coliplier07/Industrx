@@ -31,7 +31,7 @@ export default function Create() {
 
     if (data.session) {
       // Email confirmation is off for this project, so we're signed in already.
-      router.replace('/(dashboard)/jobs');
+      router.replace('/jobs');
     } else {
       // Email confirmation is required before the account can sign in.
       Alert.alert('Check Your Email', `We sent a confirmation link to ${email}.`, [

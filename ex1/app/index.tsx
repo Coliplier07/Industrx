@@ -29,7 +29,7 @@ const Home = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.replace("/(dashboard)/jobs");
+        router.replace("/jobs");
       } else {
         setCheckingSession(false);
       }
