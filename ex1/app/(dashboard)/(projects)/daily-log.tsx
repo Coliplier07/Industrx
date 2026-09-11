@@ -129,7 +129,11 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
 
         {/* Log Date Section */}
         <View style={styles.card}>
