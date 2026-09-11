@@ -163,7 +163,9 @@ function ReceiptThumbnail({ receipt, onPress }: { receipt: Receipt; onPress: () 
           </View>
         )}
         <View style={styles.receiptAmountBadge}>
-          <Text style={styles.receiptAmountText}>${receipt.amount.toFixed(2)}</Text>
+          <Text style={styles.receiptAmountText}>
+            ${receipt.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
         </View>
       </View>
       <Text style={styles.receiptDate}>{dateLabel}</Text>

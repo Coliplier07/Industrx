@@ -81,7 +81,9 @@ export default function ReceiptDetailScreen() {
         )}
 
         <View style={styles.card}>
-          <Text style={styles.amount}>${receipt.amount.toFixed(2)}</Text>
+          <Text style={styles.amount}>
+            ${receipt.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
           <Text style={styles.dateLabel}>{dateLabel}</Text>
         </View>
       </ScrollView>
