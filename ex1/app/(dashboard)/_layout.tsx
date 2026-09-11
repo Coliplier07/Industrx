@@ -13,12 +13,11 @@ export default function DashboardLayout() {
       }}
     >
       <Tabs.Screen
-        name="jobs"
+        name="(projects)"
         options={{
-          title: 'IronClad Dashboard',
+          headerShown: false, // The nested stack manages its own headers
           tabBarLabel: 'Projects',
           tabBarIcon: ({ color, size }) => <Ionicons name="briefcase" size={size} color={color} />,
-          headerLeft: () => null, // Prevents PMs from accidentally going back to Login
         }}
       />
       <Tabs.Screen
@@ -35,13 +34,6 @@ export default function DashboardLayout() {
           title: 'Profile',
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => <Ionicons name="person-circle" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="daily-log"
-        options={{
-          title: 'New Daily Log',
-          href: null, // Reachable via router.push, hidden from the tab bar
         }}
       />
     </Tabs>
