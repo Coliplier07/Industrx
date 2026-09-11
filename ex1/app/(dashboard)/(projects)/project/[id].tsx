@@ -154,13 +154,18 @@ function ReceiptThumbnail({ receipt, onPress }: { receipt: Receipt; onPress: () 
   });
   return (
     <TouchableOpacity style={styles.receiptCard} onPress={onPress}>
-      {receipt.signedUrl ? (
-        <Image source={{ uri: receipt.signedUrl }} style={styles.receiptThumb} />
-      ) : (
-        <View style={[styles.receiptThumb, styles.receiptThumbPlaceholder]}>
-          <Ionicons name="receipt-outline" size={24} color="#c7ccd1" />
+      <View>
+        {receipt.signedUrl ? (
+          <Image source={{ uri: receipt.signedUrl }} style={styles.receiptThumb} />
+        ) : (
+          <View style={[styles.receiptThumb, styles.receiptThumbPlaceholder]}>
+            <Ionicons name="receipt-outline" size={24} color="#c7ccd1" />
+          </View>
+        )}
+        <View style={styles.receiptAmountBadge}>
+          <Text style={styles.receiptAmountText}>${receipt.amount.toFixed(2)}</Text>
         </View>
-      )}
+      </View>
       <Text style={styles.receiptDate}>{dateLabel}</Text>
     </TouchableOpacity>
   );
@@ -238,4 +243,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   receiptDate: { fontSize: 12, color: '#6b7280', marginTop: 4 },
+  receiptAmountBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  receiptAmountText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
