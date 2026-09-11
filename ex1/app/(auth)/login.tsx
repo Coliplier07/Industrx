@@ -1,12 +1,22 @@
-import { Text, View, SafeAreaView, StyleSheet, Image, TextInput, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import React, { useState } from "react";
-import { Link, useRouter } from "expo-router";
-import { supabase } from "@/lib/supabase";
-
-
+import {
+  Text,
+  View,
+  SafeAreaView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import React, { useState } from 'react';
+import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/lib/supabase';
 
 function Login() {
-  const router = useRouter(); // Initialize the router
+  const router = useRouter();
 
   const [form, setForm] = useState({
     email: '',
@@ -16,7 +26,7 @@ function Login() {
 
   const handleSignIn = async () => {
     if (!form.email || !form.password) {
-      Alert.alert("Missing Info", "Please enter your email and password.");
+      Alert.alert('Missing Info', 'Please enter your email and password.');
       return;
     }
 
@@ -28,84 +38,74 @@ function Login() {
     setLoading(false);
 
     if (error) {
-      Alert.alert("Sign In Failed", error.message);
+      Alert.alert('Sign In Failed', error.message);
       return;
     }
 
     // We use .replace so the PM cannot "go back" to the login screen
     // after they have already accessed the dashboard.
-    router.replace("/jobs");
+    router.replace('/jobs');
   };
 
-  // ... rest of your return code stays the same
-  // Just ensure your TouchableOpacity calls handleSignIn
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView style={styles.flexFill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <View style={styles.logoBadge}>
+              <Ionicons name="hammer" size={32} color="#fff" />
+            </View>
 
-  return  (
-    //Styles for Image
-    <SafeAreaView style={{flex: 1, backgroundColor:'#eBecf4' }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.header}>
-          <Image
-            source={{ uri: 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fi.pinimg.com%2F736x%2F91%2F99%2Fea%2F9199ea3ba9afea2b28c2af622dbba19d.jpg&f=1&nofb=1&ipt=0a409ec9543cf3a08ff2c02758278fa053a427334994de7fe2352a0dc0b97231'}}
-            style={styles.headerImg}
-            alt="logo "
-            />
+            <Text style={styles.title}>Sign in to Industrx</Text>
+            <Text style={styles.subtitle}>Your jobsite. In your pocket.</Text>
+          </View>
 
-          <Text style = {styles.title}>Sign in to IronClad</Text>
-
-          <Text style = {styles.subtitle}>Get access to job information</Text>
-
-
-
-
-        </View>
-        <View style={styles.form}>
-          <View style={styles.input}>
-            <Text style={styles.inputLabel}>Email Address:</Text>
-
-            <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              style={styles.inputControl}
-              placeholder="yourEmail@gmail.com"
-              placeholderTextColor="#6b7280"
-              value={form.email}
-              onChangeText={email => setForm({ ...form, email })}
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email Address</Text>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                style={styles.inputControl}
+                placeholder="yourEmail@gmail.com"
+                placeholderTextColor="#8e8e93"
+                value={form.email}
+                onChangeText={(email) => setForm({ ...form, email })}
               />
-          </View>
-          <View style={styles.input}>
-            <Text style={styles.inputLabel}>Password:</Text>
-            <TextInput
-              secureTextEntry
-              style={styles.inputControl}
-              placeholder="********"
-              placeholderTextColor="#6b7280"
-              value={form.password}
-              onChangeText={password => setForm({ ...form, password })}
-            />
-          </View>
-          <TouchableOpacity onPress={handleSignIn} disabled={loading}>
-        <View style={[styles.button, loading && styles.buttonDisabled]}>
-          <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Sign in'}</Text>
-        </View>
-      </TouchableOpacity>
+            </View>
 
-      <Link href="/(auth)/create" asChild>
-        <TouchableOpacity>
-          <Text style={styles.subtitle}>Create an Account</Text>
-        </TouchableOpacity>
-      </Link>
-    </View>
-      </ScrollView>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                secureTextEntry
+                style={styles.inputControl}
+                placeholder="********"
+                placeholderTextColor="#8e8e93"
+                value={form.password}
+                onChangeText={(password) => setForm({ ...form, password })}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSignIn}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Sign In'}</Text>
+            </TouchableOpacity>
+
+            <Link href="/(auth)/create" asChild>
+              <TouchableOpacity style={styles.createAccountLink}>
+                <Text style={styles.createAccountText}>Create an Account</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -113,90 +113,55 @@ function Login() {
 
 export default Login;
 
-const styles= StyleSheet.create({
-  container:{
-    padding: 24,
-    flex:1
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#eBecf4' },
+  flexFill: { flex: 1 },
+  container: { padding: 24, flexGrow: 1, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: 36 },
+  logoBadge: {
+    width: 76,
+    height: 76,
+    borderRadius: 20,
+    backgroundColor: '#075eec',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#075eec',
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
   },
-  header:{
-    marginVertical: 36,
-  },
-
-  headerImg: {
-    width: 80,
-    height:80,
-    alignSelf: 'center',
-    marginBottom: 36,
-
-  },
-  title:{
-    fontSize: 27,
-    fontWeight: '700',
-    color: '#1e1e1e',
-    marginBottom: 6,
-    textAlign: 'center',
-
-  },
-  subtitle:{
+  title: { fontSize: 26, fontWeight: '800', color: '#1e1e1e', textAlign: 'center' },
+  subtitle: { fontSize: 15, fontWeight: '500', color: '#6b7280', marginTop: 6, textAlign: 'center' },
+  form: {},
+  inputGroup: { marginBottom: 16 },
+  inputLabel: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 6 },
+  inputControl: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     fontSize: 15,
     fontWeight: '500',
-    color: '#929292',
-    marginBottom: 5,
-    textAlign: 'center',
-
+    color: '#1e1e1e',
   },
-  input:{},
-  inputLabel:{
-    fontSize: 17,
-    fontWeight:'600',
-    color: '#222',
-    textAlign: 'left',
-    padding: 12,
-   
-
-  },
-
-  inputControl:{
-
-    backgroundColor: '#fff',
-    paddingVertical:10,
-    paddingHorizontal:16,
-    borderRadius: 12,
-    fontSize: 15,
-    fontWeight:'500',
-    color: '#222',
-
-  },
-
-  form: {
-    marginBottom: 24,
-    flex: 1,
-  },
-
-  formAction:{
-    marginVertical: 24,
-  },
-
   button: {
     backgroundColor: '#075eec',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#075eec',
-    flexDirection: 'row',
+    borderRadius: 10,
+    paddingVertical: 15,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginVertical: 24,
+    marginTop: 8,
+    shadowColor: '#075eec',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-
-  }
-
-})
+  buttonDisabled: { opacity: 0.6 },
+  buttonText: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  createAccountLink: { marginTop: 18, alignItems: 'center' },
+  createAccountText: { fontSize: 14, fontWeight: '600', color: '#075eec' },
+});
