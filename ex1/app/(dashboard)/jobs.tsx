@@ -43,7 +43,7 @@ export default function JobsDashboard() {
             title="Receipts" 
             icon="camera" 
             color="#fa3227" 
-            onPress={() => console.log('Camera Open')} 
+            onPress={() => router.push("/(dashboard)/receipts")} 
           />
           <MenuButton 
             title="Crew Clock" 
