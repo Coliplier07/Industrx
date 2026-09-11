@@ -9,14 +9,30 @@ import {
   SafeAreaView,
   Alert,
   Platform,
+  ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useProjects, LaborEntry, EquipmentEntry } from '@/context/ProjectsContext';
+import { useProjects, LaborEntry, EquipmentEntry, VehicleEntry } from '@/context/ProjectsContext';
 
 export default function DailyLogScreen() {
   const { projectId, logId } = useLocalSearchParams<{ projectId: string; logId?: string }>();
+  const { loading } = useProjects();
+
+  // Don't mount the form until projects have actually loaded — otherwise,
+  // if this screen is reached before the initial fetch resolves, the form's
+  // initial state would snapshot "not found yet" and permanently miss the
+  // real existing values once data does arrive.
+  if (logId && loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#075eec" />
+      </View>
+    );
+  }
+
   // `key` forces a fresh component instance (and fresh initial state) whenever
   // the target log changes, since this hidden-tab screen would otherwise be
   // reused across navigations instead of remounted.
@@ -45,6 +61,10 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
   const [equipmentEntries, setEquipmentEntries] = useState<EquipmentEntry[]>(
     existingLog?.equipmentEntries ?? [{ id: '1', equipmentName: '', hoursUsed: 8 }]
   );
+  const [vehicleEntries, setVehicleEntries] = useState<VehicleEntry[]>(
+    existingLog?.vehicleEntries ?? [{ id: '1', vehicleName: '', hoursUsed: 8 }]
+  );
+  const [saving, setSaving] = useState(false);
 
   // --- Labor Handlers ---
   const addLaborRow = () => {
@@ -86,6 +106,26 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
     }
   };
 
+  // --- Vehicle Handlers ---
+  const addVehicleRow = () => {
+    setVehicleEntries([
+      ...vehicleEntries,
+      { id: Date.now().toString(), vehicleName: '', hoursUsed: 8 },
+    ]);
+  };
+
+  const updateVehicle = (id: string, field: keyof VehicleEntry, value: any) => {
+    setVehicleEntries(
+      vehicleEntries.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
+    );
+  };
+
+  const removeVehicle = (id: string) => {
+    if (vehicleEntries.length > 1) {
+      setVehicleEntries(vehicleEntries.filter((entry) => entry.id !== id));
+    }
+  };
+
   // --- Date Handler ---
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -98,7 +138,7 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
   };
 
   // --- Submission Handler ---
-  const handleSaveLog = () => {
+  const handleSaveLog = async () => {
     if (!workDescription.trim()) {
       Alert.alert('Required Field', 'Please enter a description of work done.');
       return;
@@ -114,21 +154,34 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
       workDescription,
       laborEntries,
       equipmentEntries,
+      vehicleEntries,
     };
 
-    if (isEditing && logId) {
-      updateDailyLog(projectId, logId, payload);
-      Alert.alert('Success', 'Daily Log updated.', [{ text: 'OK', onPress: () => router.back() }]);
-    } else {
-      addDailyLog(projectId, payload);
-      Alert.alert('Success', 'Daily Log saved to the project.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+    setSaving(true);
+    try {
+      if (isEditing && logId) {
+        await updateDailyLog(projectId, logId, payload);
+        Alert.alert('Success', 'Daily Log updated.', [{ text: 'OK', onPress: () => router.back() }]);
+      } else {
+        await addDailyLog(projectId, payload);
+        Alert.alert('Success', 'Daily Log saved to the project.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message ?? 'Failed to save daily log.');
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardDismissMode="on-drag"
@@ -254,6 +307,56 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
           ))}
         </View>
 
+        {/* Vehicle Hours Section */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.sectionTitle}>Vehicle Tracking</Text>
+            <TouchableOpacity style={styles.addBtn} onPress={addVehicleRow}>
+              <Ionicons name="add-circle" size={20} color="#075eec" />
+              <Text style={styles.addBtnText}>Add Vehicle</Text>
+            </TouchableOpacity>
+          </View>
+
+          {vehicleEntries.map((item) => (
+            <View key={item.id} style={styles.entryRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Vehicle Name / Unit #"
+                placeholderTextColor="#8e8e93"
+                value={item.vehicleName}
+                onChangeText={(val) => updateVehicle(item.id, 'vehicleName', val)}
+              />
+
+              <View style={styles.counterRow}>
+                <View style={styles.counterContainer}>
+                  <Text style={styles.counterLabel}>Hours Used</Text>
+                  <View style={styles.counterControls}>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => updateVehicle(item.id, 'hoursUsed', Math.max(0, item.hoursUsed - 0.5))}
+                    >
+                      <Text style={styles.stepBtnText}>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.counterValue}>{item.hoursUsed}</Text>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => updateVehicle(item.id, 'hoursUsed', item.hoursUsed + 0.5)}
+                    >
+                      <Text style={styles.stepBtnText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {vehicleEntries.length > 1 && (
+                  <TouchableOpacity style={styles.deleteBtn} onPress={() => removeVehicle(item.id)}>
+                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+
         {/* Equipment Hours Section */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -305,17 +408,26 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
         </View>
 
         {/* Action Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveLog}>
-          <Text style={styles.saveButtonText}>{isEditing ? 'Save Changes' : 'Submit Daily Log'}</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          onPress={handleSaveLog}
+          disabled={saving}
+        >
+          <Text style={styles.saveButtonText}>
+            {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Submit Daily Log'}
+          </Text>
         </TouchableOpacity>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
+  loadingContainer: { flex: 1, backgroundColor: '#eBecf4', justifyContent: 'center', alignItems: 'center' },
+  keyboardAvoider: { flex: 1 },
   scrollContent: { padding: 16 },
   card: {
     backgroundColor: '#fff',
@@ -415,5 +527,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 32,
   },
+  saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { color: '#fff', fontSize: 18, fontWeight: '700' },
 });

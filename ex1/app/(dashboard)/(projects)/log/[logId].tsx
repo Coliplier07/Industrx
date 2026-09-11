@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useProjects } from '@/context/ProjectsContext';
+import HeaderIconButton from '@/components/HeaderIconButton';
 
 export default function LogDetailScreen() {
   const router = useRouter();
@@ -19,9 +19,13 @@ export default function LogDetailScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => {
-          deleteDailyLog(projectId, logId);
-          router.back();
+        onPress: async () => {
+          try {
+            await deleteDailyLog(projectId, logId);
+            router.back();
+          } catch (error: any) {
+            Alert.alert('Error', error.message ?? 'Failed to delete daily log.');
+          }
         },
       },
     ]);
@@ -42,10 +46,15 @@ export default function LogDetailScreen() {
     navigation.setOptions({
       title: 'Daily Log',
       headerRight: () => (
-        <TouchableOpacity onPress={showOptions} style={styles.headerBtn}>
-          <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
-        </TouchableOpacity>
+        <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />
       ),
+      unstable_headerRightItems: () => [
+        {
+          type: 'custom',
+          element: <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />,
+          hidesSharedBackground: true,
+        },
+      ],
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, logId, log]);
@@ -90,6 +99,16 @@ export default function LogDetailScreen() {
           ))}
         </View>
 
+        <Text style={styles.sectionTitle}>Vehicle Tracking</Text>
+        <View style={styles.card}>
+          {log.vehicleEntries.map((entry) => (
+            <View key={entry.id} style={styles.entryRow}>
+              <Text style={styles.entryName}>{entry.vehicleName || 'Unnamed Vehicle'}</Text>
+              <Text style={styles.entryMeta}>{entry.hoursUsed} hours used</Text>
+            </View>
+          ))}
+        </View>
+
         <Text style={styles.sectionTitle}>Equipment Usage</Text>
         <View style={styles.card}>
           {log.equipmentEntries.map((entry) => (
@@ -109,7 +128,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
   scrollContent: { padding: 20 },
   notFound: { padding: 20, color: '#6b7280', textAlign: 'center' },
-  headerBtn: { paddingHorizontal: 12, paddingVertical: 6 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,

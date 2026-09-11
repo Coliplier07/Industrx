@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { HeaderBackButton, headerLeftItems } from '@/components/HeaderBackButton';
 
-export default function ProjectsStackLayout() {
+export default function AdminStackLayout() {
   return (
     <Stack
       screenOptions={{
@@ -14,15 +14,14 @@ export default function ProjectsStackLayout() {
       }}
     >
       <Stack.Screen
-        name="jobs"
-        options={{ title: 'Projects', headerLeft: () => null, unstable_headerLeftItems: () => [] }}
+        name="index"
+        options={{ title: 'Admin', headerLeft: () => null, unstable_headerLeftItems: () => [] }}
       />
-      <Stack.Screen name="project/new" />
-      <Stack.Screen name="project/[id]" />
-      <Stack.Screen name="daily-log" />
-      <Stack.Screen name="log/[logId]" />
-      <Stack.Screen name="receipt/new" />
-      <Stack.Screen name="receipt/[receiptId]" />
+      <Stack.Screen name="company" options={{ title: 'Company' }} />
+      <Stack.Screen name="team" options={{ title: 'Team' }} />
+      <Stack.Screen name="team/new" options={{ title: 'Add Person' }} />
+      <Stack.Screen name="rate-sheet" options={{ title: 'Rate Sheet' }} />
+      <Stack.Screen name="rate-sheet/new" />
     </Stack>
   );
 }
