@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Image, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, Image, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProjects } from '@/context/ProjectsContext';
+import HeaderIconButton from '@/components/HeaderIconButton';
 
 export default function ReceiptDetailScreen() {
   const router = useRouter();
@@ -46,9 +47,7 @@ export default function ReceiptDetailScreen() {
     navigation.setOptions({
       title: 'Receipt',
       headerRight: () => (
-        <TouchableOpacity onPress={showOptions} style={styles.headerBtn}>
-          <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
-        </TouchableOpacity>
+        <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />
       ),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,7 +94,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
   scrollContent: { padding: 20 },
   notFound: { padding: 20, color: '#6b7280', textAlign: 'center' },
-  headerBtn: { paddingHorizontal: 12, paddingVertical: 6 },
   photo: { width: '100%', height: 320, borderRadius: 12, marginBottom: 16 },
   photoPlaceholder: {
     backgroundColor: '#fff',

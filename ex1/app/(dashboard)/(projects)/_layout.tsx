@@ -1,4 +1,14 @@
-import { Stack } from 'expo-router';
+import React from 'react';
+import { Stack, useNavigation } from 'expo-router';
+import HeaderIconButton from '@/components/HeaderIconButton';
+
+function BackButton({ canGoBack }: { canGoBack?: boolean }) {
+  const navigation = useNavigation();
+  if (!canGoBack) return null;
+  return (
+    <HeaderIconButton name="chevron-back" onPress={() => navigation.goBack()} style={{ marginLeft: 8 }} />
+  );
+}
 
 export default function ProjectsStackLayout() {
   return (
@@ -7,7 +17,7 @@ export default function ProjectsStackLayout() {
         headerStyle: { backgroundColor: '#075eec' }, // IronClad Blue
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
-        headerBackButtonDisplayMode: 'minimal', // Just the arrow, no "Back" text
+        headerLeft: ({ canGoBack }) => <BackButton canGoBack={canGoBack} />,
       }}
     >
       <Stack.Screen name="jobs" options={{ title: 'Projects', headerLeft: () => null }} />

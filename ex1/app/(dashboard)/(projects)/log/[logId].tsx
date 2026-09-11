@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useProjects } from '@/context/ProjectsContext';
+import HeaderIconButton from '@/components/HeaderIconButton';
 
 export default function LogDetailScreen() {
   const router = useRouter();
@@ -46,9 +46,7 @@ export default function LogDetailScreen() {
     navigation.setOptions({
       title: 'Daily Log',
       headerRight: () => (
-        <TouchableOpacity onPress={showOptions} style={styles.headerBtn}>
-          <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
-        </TouchableOpacity>
+        <HeaderIconButton name="ellipsis-horizontal" onPress={showOptions} style={{ marginRight: 8 }} />
       ),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +121,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eBecf4' },
   scrollContent: { padding: 20 },
   notFound: { padding: 20, color: '#6b7280', textAlign: 'center' },
-  headerBtn: { paddingHorizontal: 12, paddingVertical: 6 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
