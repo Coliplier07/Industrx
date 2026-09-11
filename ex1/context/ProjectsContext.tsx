@@ -41,15 +41,7 @@ interface ProjectsContextValue {
 
 const ProjectsContext = createContext<ProjectsContextValue | undefined>(undefined);
 
-const initialProjects: Project[] = [
-  {
-    id: '1',
-    name: 'Sector 7 Pipeline - Maintenance',
-    location: 'Coffeyville, KS',
-    status: 'Active',
-    dailyLogs: [],
-  },
-];
+const initialProjects: Project[] = [];
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
