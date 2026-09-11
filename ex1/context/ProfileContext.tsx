@@ -97,9 +97,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         // Invalidate any fetch still in flight for the account we're
         // leaving, so it can't land after this and repopulate stale data.
+        // loading is false (not true) here — there's nothing left to fetch
+        // once signed out, so anything gating on "loading" (e.g. the
+        // dashboard's tab bar) won't spin forever if it's still mounted
+        // for a moment during the sign-out navigation.
         fetchIdRef.current += 1;
         setProfile(null);
-        setLoading(true);
+        setLoading(false);
       }
     });
 

@@ -207,10 +207,7 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           await supabase.auth.signOut();
-          // replace() only swaps the current screen, leaving the rest of
-          // the stack (including the dashboard) reachable via swipe-back.
-          // dismissTo unwinds the whole stack down to the landing screen.
-          router.dismissTo('/');
+          router.replace('/');
         },
       },
     ]);
