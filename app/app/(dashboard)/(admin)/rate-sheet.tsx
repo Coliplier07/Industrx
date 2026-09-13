@@ -65,10 +65,13 @@ export default function RateSheetScreen() {
   };
 
   // Re-fetch every time this screen regains focus (not just on first mount),
-  // so returning from Add/Edit Rate shows the up-to-date list.
+  // so returning from Add/Edit Rate shows the up-to-date list. Deliberately
+  // doesn't toggle `loading` here -- only the very first fetch (from the
+  // useState(true) above) shows the blocking spinner. Otherwise every trip
+  // back from Add/Edit Rate -- even backing out with no changes -- would
+  // blank the whole list and flash the spinner for no reason.
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchItems();
     }, [])
   );
