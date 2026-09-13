@@ -51,7 +51,7 @@
 ## Repository Directory Structure
 
 ```text
-ex1/
+app/                                    # Expo / React Native app
 ├── app/
 │   ├── _layout.tsx                    # Root navigator, ProfileProvider/ProjectsProvider
 │   ├── index.tsx                      # Application entry / auth redirect gate
@@ -67,8 +67,8 @@ ex1/
 │       └── profile.tsx                # Editable profile
 ├── context/                           # ProfileContext, ProjectsContext
 ├── components/                        # Shared UI (header buttons, etc.)
-├── lib/                               # supabase client, week/pay-period helpers
-└── supabase/functions/                # Edge Functions (e.g. admin-create-account)
+└── lib/                                # supabase client, week/pay-period helpers
 
-database/                              # SQL migrations, run manually in Supabase SQL Editor
+supabase/functions/                     # Edge Functions (e.g. admin-create-account)
+database/                               # SQL migrations, run manually in Supabase SQL Editor
 ```
