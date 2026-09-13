@@ -153,6 +153,9 @@ export default function CrewHoursReportScreen() {
     });
   };
 
+  // No reporting on weeks that haven't happened yet.
+  const isCurrentWeek = referenceDate.toDateString() === new Date().toDateString();
+
   const allMembers = groups.flatMap((g) => g.members);
   const totalSt = allMembers.reduce((sum, m) => sum + m.stHours, 0);
   const totalOt = allMembers.reduce((sum, m) => sum + m.otHours, 0);
@@ -165,8 +168,12 @@ export default function CrewHoursReportScreen() {
             <Ionicons name="chevron-back" size={22} color="#075eec" />
           </TouchableOpacity>
           <Text style={styles.weekLabel}>{weekLabel}</Text>
-          <TouchableOpacity style={styles.weekNavBtn} onPress={() => shiftWeek(7)}>
-            <Ionicons name="chevron-forward" size={22} color="#075eec" />
+          <TouchableOpacity
+            style={[styles.weekNavBtn, isCurrentWeek && styles.weekNavBtnDisabled]}
+            onPress={() => shiftWeek(7)}
+            disabled={isCurrentWeek}
+          >
+            <Ionicons name="chevron-forward" size={22} color={isCurrentWeek ? '#c7ccd1' : '#075eec'} />
           </TouchableOpacity>
         </View>
 
@@ -187,7 +194,16 @@ export default function CrewHoursReportScreen() {
         ) : (
           groups.map((group) => (
             <View key={group.key} style={styles.groupSection}>
-              {profile?.role === 'admin' && <Text style={styles.groupTitle}>{group.title}</Text>}
+              {profile?.role === 'admin' && (
+                <View style={styles.groupTitleRow}>
+                  <Text style={styles.groupTitle}>{group.title}</Text>
+                  {group.key !== 'unassigned' && (
+                    <View style={styles.crewBadge}>
+                      <Text style={styles.crewBadgeText}>Crew</Text>
+                    </View>
+                  )}
+                </View>
+              )}
               {group.members.map((m) => (
                 <View key={m.id} style={styles.card}>
                   <View>
@@ -234,6 +250,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e1e4e8',
   },
+  weekNavBtnDisabled: { opacity: 0.5 },
   weekLabel: { fontSize: 15, fontWeight: '700', color: '#1e1e1e' },
   tallyCard: {
     backgroundColor: '#075eec',
@@ -248,7 +265,22 @@ const styles = StyleSheet.create({
   loadingIndicator: { marginTop: 24 },
   emptyText: { color: '#6b7280', textAlign: 'center', marginTop: 24 },
   groupSection: { marginBottom: 12 },
-  groupTitle: { fontSize: 14, fontWeight: '700', color: '#075eec', marginBottom: 8 },
+  groupTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  groupTitle: { fontSize: 14, fontWeight: '700', color: '#075eec' },
+  crewBadge: {
+    backgroundColor: '#eef4ff',
+    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginLeft: 8,
+  },
+  crewBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#075eec',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   card: {
     flexDirection: 'row',
     justifyContent: 'space-between',
