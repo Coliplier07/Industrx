@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/lib/supabase';
 
 export default function CrewHoursHubScreen() {
   const router = useRouter();
+  const [pendingRequests, setPendingRequests] = useState(0);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // RLS already scopes this to the current PM's crew (or the whole
+      // company for an admin), so no need to resolve crew ids client-side.
+      supabase
+        .from('timesheet_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'disputed')
+        .then(({ count }) => setPendingRequests(count ?? 0));
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -17,6 +31,22 @@ export default function CrewHoursHubScreen() {
             <Text style={styles.cardTitle}>Submit Hours</Text>
             <Text style={styles.cardSubtitle}>Enter ST/OT for your crew on a date</Text>
           </View>
+          <Ionicons name="chevron-forward" size={20} color="#c7ccd1" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.card} onPress={() => router.push('/requests')}>
+          <View style={styles.cardIcon}>
+            <Ionicons name="alert-circle" size={26} color="#075eec" />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle}>Change Requests</Text>
+            <Text style={styles.cardSubtitle}>Review hours an employee flagged</Text>
+          </View>
+          {pendingRequests > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{pendingRequests}</Text>
+            </View>
+          )}
           <Ionicons name="chevron-forward" size={20} color="#c7ccd1" />
         </TouchableOpacity>
 
@@ -60,4 +90,15 @@ const styles = StyleSheet.create({
   cardText: { flex: 1 },
   cardTitle: { fontSize: 17, fontWeight: '700', color: '#1e1e1e' },
   cardSubtitle: { fontSize: 13, color: '#6b7280', marginTop: 2 },
+  badge: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });
