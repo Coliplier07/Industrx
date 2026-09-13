@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ex1",
-    "slug": "ex1",
+    "name": "Industrx",
+    "slug": "industrx",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ex1",
+    "scheme": "industrx",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
