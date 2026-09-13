@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -23,10 +23,14 @@ export default function NeedsActionScreen() {
   const { profile } = useProfile();
   const [entries, setEntries] = useState<TimesheetEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  // Only the very first fetch should show the blocking spinner -- otherwise
+  // every trip back to this screen would blank the list and flash it for
+  // no reason.
+  const hasLoadedRef = useRef(false);
 
   const fetchEntries = React.useCallback(async () => {
     if (!profile) return;
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
 
     // Every entry that isn't resolved yet, across all pay periods — not
     // scoped to a week, so nothing needing action gets buried in the past.
@@ -40,6 +44,7 @@ export default function NeedsActionScreen() {
     if (error) {
       console.error('Failed to load pending hours:', error.message);
       setEntries([]);
+      hasLoadedRef.current = true;
       setLoading(false);
       return;
     }
@@ -53,6 +58,7 @@ export default function NeedsActionScreen() {
         status: row.status,
       }))
     );
+    hasLoadedRef.current = true;
     setLoading(false);
   }, [profile]);
 

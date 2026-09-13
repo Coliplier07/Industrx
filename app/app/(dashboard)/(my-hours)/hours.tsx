@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +29,10 @@ export default function MyHoursScreen() {
   const [referenceDate, setReferenceDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [needsActionCount, setNeedsActionCount] = useState(0);
+  // Only the very first fetch should show the blocking spinner -- otherwise
+  // every trip back to this screen (or every week-switch) would blank the
+  // list and flash it for no reason.
+  const hasLoadedRef = useRef(false);
 
   // Hours submitted for a past pay period would otherwise never be visible —
   // this screen used to only ever query the current week.
@@ -36,7 +40,7 @@ export default function MyHoursScreen() {
 
   const fetchEntries = React.useCallback(async () => {
     if (!profile) return;
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
 
     const { data: company } = await supabase
       .from('companies')
@@ -57,6 +61,7 @@ export default function MyHoursScreen() {
     if (error) {
       console.error('Failed to load hours:', error.message);
       setEntries([]);
+      hasLoadedRef.current = true;
       setLoading(false);
       return;
     }
@@ -70,6 +75,7 @@ export default function MyHoursScreen() {
         status: row.status,
       }))
     );
+    hasLoadedRef.current = true;
     setLoading(false);
   }, [profile, referenceDate]);
 

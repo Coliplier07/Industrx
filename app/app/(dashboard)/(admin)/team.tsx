@@ -76,10 +76,11 @@ export default function TeamScreen() {
   };
 
   // Re-fetch every time this screen regains focus (not just on first mount),
-  // so returning from Add Person shows the up-to-date list.
+  // so returning from Add Person shows the up-to-date list. Doesn't toggle
+  // `loading` here -- only the very first fetch shows the blocking spinner,
+  // otherwise every trip back would blank the list and flash the spinner.
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchMembers();
     }, [])
   );

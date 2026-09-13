@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -26,10 +26,14 @@ export default function ChangeRequestsScreen() {
   const [actingOn, setActingOn] = useState<string | null>(null);
   // Which request's hour-editor is currently open — only one at a time.
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Only the very first fetch should show the blocking spinner -- otherwise
+  // every trip back to this screen would blank the list and flash it for
+  // no reason.
+  const hasLoadedRef = useRef(false);
 
   const fetchRequests = React.useCallback(async () => {
     if (!profile) return;
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
 
     let people: { id: string; full_name: string }[];
 
@@ -38,6 +42,7 @@ export default function ChangeRequestsScreen() {
       if (error) {
         console.error('Failed to load people:', error.message);
         setRequests([]);
+        hasLoadedRef.current = true;
         setLoading(false);
         return;
       }
@@ -51,6 +56,7 @@ export default function ChangeRequestsScreen() {
       if (error) {
         console.error('Failed to load crew:', error.message);
         setRequests([]);
+        hasLoadedRef.current = true;
         setLoading(false);
         return;
       }
@@ -73,6 +79,7 @@ export default function ChangeRequestsScreen() {
     if (entriesError) {
       console.error('Failed to load change requests:', entriesError.message);
       setRequests([]);
+      hasLoadedRef.current = true;
       setLoading(false);
       return;
     }
@@ -95,6 +102,7 @@ export default function ChangeRequestsScreen() {
       )
     );
     setEditingId(null);
+    hasLoadedRef.current = true;
     setLoading(false);
   }, [profile]);
 
