@@ -19,6 +19,10 @@ export default function DashboardLayout() {
   const isAdmin = profile?.role === 'admin';
   const isPmOrAdmin = profile?.role === 'pm' || profile?.role === 'admin';
   const isEmployee = profile?.role === 'employee';
+  // A PM has their own timesheet entries too (submitted by an admin, or via
+  // Crew Hours' "your own hours" row) — they need My Hours to approve or
+  // dispute those, same as an employee.
+  const seesMyHours = isEmployee || profile?.role === 'pm';
 
   return (
     <Tabs
@@ -56,7 +60,7 @@ export default function DashboardLayout() {
         name="(my-hours)"
         options={{
           headerShown: false, // The nested stack manages its own headers
-          href: isEmployee ? undefined : null, // only employees see their own hours
+          href: seesMyHours ? undefined : null, // employees and PMs see their own hours
           tabBarLabel: 'My Hours',
           tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
         }}
