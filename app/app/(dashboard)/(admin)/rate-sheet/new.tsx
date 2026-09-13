@@ -95,10 +95,12 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
   const [name, setName] = useState(existingItem?.name ?? '');
   // Per diem is always a flat daily amount, and labor is always hourly --
   // neither has a real rate-type choice to make, so the picker only shows
-  // for equipment/vehicle.
+  // for equipment/vehicle. Vehicle also drops Per Job -- vehicles are
+  // tracked by hours or a flat day rate, not per job.
   const [rateType, setRateType] = useState<RateType>(() => {
     if (existingItem?.category === 'per_diem') return 'daily';
     if (existingItem?.category === 'labor') return 'hourly';
+    if (existingItem?.category === 'vehicle' && existingItem.rateType === 'per_job') return 'hourly';
     return existingItem?.rateType ?? 'hourly';
   });
   const [rate, setRate] = useState(existingItem?.rate ?? '');
@@ -109,6 +111,7 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
     setCategory(value);
     if (value === 'per_diem') setRateType('daily');
     else if (value === 'labor') setRateType('hourly');
+    else if (value === 'vehicle' && rateType === 'per_job') setRateType('hourly');
   };
 
   const handleSave = async () => {
@@ -249,7 +252,7 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
               <>
                 <Text style={styles.label}>Rate Type</Text>
                 <View style={styles.optionRow}>
-                  {RATE_TYPE_OPTIONS.map((opt) => (
+                  {RATE_TYPE_OPTIONS.filter((opt) => !(category === 'vehicle' && opt.value === 'per_job')).map((opt) => (
                     <TouchableOpacity
                       key={opt.value}
                       style={[styles.optionBtn, rateType === opt.value && styles.optionBtnSelected]}
