@@ -4,22 +4,33 @@ import { useProfile } from '@/context/ProfileContext';
 
 export interface LaborEntry {
   id: string;
-  workerName: string;
-  trade: string;
+  employeeId: string;
+  employeeName: string;
+  rateSheetItemId: string;
+  roleName: string;
+  perDiemItemId: string | null;
+  perDiemName: string | null;
   stHours: number;
   otHours: number;
 }
 
 export interface EquipmentEntry {
   id: string;
+  rateSheetItemId: string;
   equipmentName: string;
   hoursUsed: number;
+  // Only set when the selected rate sheet item is a flat daily rate --
+  // computed once at save time and stored, not looked up live, so it
+  // doesn't drift if the rate sheet's dollar amount changes later.
+  cost: number | null;
 }
 
 export interface VehicleEntry {
   id: string;
+  rateSheetItemId: string;
   vehicleName: string;
   hoursUsed: number;
+  cost: number | null;
 }
 
 export interface DailyLog {
@@ -89,20 +100,30 @@ function mapProjectRow(row: any): Project {
         workDescription: log.work_description ?? '',
         laborEntries: (log.labor_entries ?? []).map((entry: any): LaborEntry => ({
           id: entry.id,
-          workerName: entry.worker_name ?? '',
-          trade: entry.trade ?? '',
+          employeeId: entry.employee_id ?? '',
+          // Snapshotted at save time, not joined live -- so renaming or
+          // deleting a person/rate later doesn't rewrite past daily logs.
+          employeeName: entry.employee_name || 'Unknown',
+          rateSheetItemId: entry.rate_sheet_item_id ?? '',
+          roleName: entry.role_name || 'Unknown',
+          perDiemItemId: entry.per_diem_item_id,
+          perDiemName: entry.per_diem_name,
           stHours: Number(entry.st_hours) || 0,
           otHours: Number(entry.ot_hours) || 0,
         })),
         equipmentEntries: (log.equipment_entries ?? []).map((entry: any): EquipmentEntry => ({
           id: entry.id,
-          equipmentName: entry.equipment_name ?? '',
+          rateSheetItemId: entry.rate_sheet_item_id ?? '',
+          equipmentName: entry.equipment_name || 'Unknown',
           hoursUsed: Number(entry.hours_used) || 0,
+          cost: entry.cost === null || entry.cost === undefined ? null : Number(entry.cost),
         })),
         vehicleEntries: (log.vehicle_entries ?? []).map((entry: any): VehicleEntry => ({
           id: entry.id,
-          vehicleName: entry.vehicle_name ?? '',
+          rateSheetItemId: entry.rate_sheet_item_id ?? '',
+          vehicleName: entry.vehicle_name || 'Unknown',
           hoursUsed: Number(entry.hours_used) || 0,
+          cost: entry.cost === null || entry.cost === undefined ? null : Number(entry.cost),
         })),
       }))
       .sort((a: DailyLog, b: DailyLog) => (a.date < b.date ? 1 : -1)),
@@ -285,8 +306,12 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('labor_entries').insert(
         laborEntries.map((entry) => ({
           daily_log_id: dailyLogId,
-          worker_name: entry.workerName,
-          trade: entry.trade,
+          employee_id: entry.employeeId,
+          employee_name: entry.employeeName,
+          rate_sheet_item_id: entry.rateSheetItemId,
+          role_name: entry.roleName,
+          per_diem_item_id: entry.perDiemItemId,
+          per_diem_name: entry.perDiemName,
           st_hours: entry.stHours,
           ot_hours: entry.otHours,
         }))
@@ -298,8 +323,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('equipment_entries').insert(
         equipmentEntries.map((entry) => ({
           daily_log_id: dailyLogId,
+          rate_sheet_item_id: entry.rateSheetItemId,
           equipment_name: entry.equipmentName,
           hours_used: entry.hoursUsed,
+          cost: entry.cost,
         }))
       );
       if (error) throw error;
@@ -309,8 +336,10 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('vehicle_entries').insert(
         vehicleEntries.map((entry) => ({
           daily_log_id: dailyLogId,
+          rate_sheet_item_id: entry.rateSheetItemId,
           vehicle_name: entry.vehicleName,
           hours_used: entry.hoursUsed,
+          cost: entry.cost,
         }))
       );
       if (error) throw error;

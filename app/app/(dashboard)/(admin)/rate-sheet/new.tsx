@@ -15,8 +15,8 @@ import {
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-type Category = 'labor' | 'equipment' | 'vehicle' | 'per_diem' | 'upcharge';
-type RateType = 'hourly' | 'daily' | 'per_job' | 'percentage';
+type Category = 'labor' | 'equipment' | 'vehicle' | 'per_diem';
+type RateType = 'hourly' | 'daily' | 'per_job';
 
 interface ExistingItem {
   category: Category;
@@ -31,14 +31,12 @@ const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
   { value: 'equipment', label: 'Equipment' },
   { value: 'vehicle', label: 'Vehicle' },
   { value: 'per_diem', label: 'Per Diem' },
-  { value: 'upcharge', label: 'Upcharge' },
 ];
 
 const RATE_TYPE_OPTIONS: { value: RateType; label: string }[] = [
   { value: 'hourly', label: 'Hourly' },
   { value: 'daily', label: 'Daily' },
   { value: 'per_job', label: 'Per Job' },
-  { value: 'percentage', label: 'Percentage' },
 ];
 
 function formatDecimal(value: string): string {
@@ -95,10 +93,26 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
 
   const [category, setCategory] = useState<Category>(existingItem?.category ?? 'labor');
   const [name, setName] = useState(existingItem?.name ?? '');
-  const [rateType, setRateType] = useState<RateType>(existingItem?.rateType ?? 'hourly');
+  // Per diem is always a flat daily amount, and labor is always hourly --
+  // neither has a real rate-type choice to make, so the picker only shows
+  // for equipment/vehicle. Vehicle also drops Per Job -- vehicles are
+  // tracked by hours or a flat day rate, not per job.
+  const [rateType, setRateType] = useState<RateType>(() => {
+    if (existingItem?.category === 'per_diem') return 'daily';
+    if (existingItem?.category === 'labor') return 'hourly';
+    if (existingItem?.category === 'vehicle' && existingItem.rateType === 'per_job') return 'hourly';
+    return existingItem?.rateType ?? 'hourly';
+  });
   const [rate, setRate] = useState(existingItem?.rate ?? '');
   const [otRate, setOtRate] = useState(existingItem?.otRate ?? '');
   const [saving, setSaving] = useState(false);
+
+  const selectCategory = (value: Category) => {
+    setCategory(value);
+    if (value === 'per_diem') setRateType('daily');
+    else if (value === 'labor') setRateType('hourly');
+    else if (value === 'vehicle' && rateType === 'per_job') setRateType('hourly');
+  };
 
   const handleSave = async () => {
     const parsedRate = parseFloat(rate);
@@ -161,6 +175,31 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
     router.back();
   };
 
+  const handleDelete = () => {
+    if (!rateItemId) return;
+    Alert.alert(
+      'Delete Rate',
+      `Delete "${name}"? Any daily log entries using it will keep their history but lose this rate's info.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            const { error } = await supabase.from('rate_sheet_items').delete().eq('id', rateItemId);
+            setSaving(false);
+            if (error) {
+              Alert.alert('Error', error.message);
+              return;
+            }
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -171,19 +210,34 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
         <ScrollView keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
             <Text style={styles.label}>Category</Text>
-            <View style={styles.optionRow}>
-              {CATEGORY_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[styles.optionBtn, category === opt.value && styles.optionBtnSelected]}
-                  onPress={() => setCategory(opt.value)}
-                >
-                  <Text style={[styles.optionBtnText, category === opt.value && styles.optionBtnTextSelected]}>
-                    {opt.label}
+            {isEditing ? (
+              <>
+                <View style={[styles.optionBtn, styles.optionBtnSelected, styles.optionBtnLocked]}>
+                  <Text style={[styles.optionBtnText, styles.optionBtnTextSelected]}>
+                    {CATEGORY_OPTIONS.find((opt) => opt.value === category)?.label}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                </View>
+                <Text style={styles.lockedHint}>
+                  Category can&apos;t be changed once a rate is created -- it determines which rate type is
+                  allowed and where it shows up in daily logs. Delete and re-add it under a different category
+                  instead.
+                </Text>
+              </>
+            ) : (
+              <View style={styles.optionRow}>
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.optionBtn, category === opt.value && styles.optionBtnSelected]}
+                    onPress={() => selectCategory(opt.value)}
+                  >
+                    <Text style={[styles.optionBtnText, category === opt.value && styles.optionBtnTextSelected]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             <Text style={styles.label}>Name</Text>
             <TextInput
@@ -194,22 +248,28 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
               onChangeText={setName}
             />
 
-            <Text style={styles.label}>Rate Type</Text>
-            <View style={styles.optionRow}>
-              {RATE_TYPE_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[styles.optionBtn, rateType === opt.value && styles.optionBtnSelected]}
-                  onPress={() => setRateType(opt.value)}
-                >
-                  <Text style={[styles.optionBtnText, rateType === opt.value && styles.optionBtnTextSelected]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {category !== 'per_diem' && category !== 'labor' && (
+              <>
+                <Text style={styles.label}>Rate Type</Text>
+                <View style={styles.optionRow}>
+                  {RATE_TYPE_OPTIONS.filter((opt) => !(category === 'vehicle' && opt.value === 'per_job')).map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[styles.optionBtn, rateType === opt.value && styles.optionBtnSelected]}
+                      onPress={() => setRateType(opt.value)}
+                    >
+                      <Text style={[styles.optionBtnText, rateType === opt.value && styles.optionBtnTextSelected]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
 
-            <Text style={styles.label}>{rateType === 'percentage' ? 'Rate (%)' : 'Rate ($)'}</Text>
+            <Text style={styles.label}>
+              {category === 'per_diem' ? 'Rate ($/day)' : category === 'labor' ? 'Rate ($/hr)' : 'Rate ($)'}
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="0.00"
@@ -244,6 +304,12 @@ function RateSheetForm({ rateItemId, existingItem }: { rateItemId?: string; exis
                 {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Add to Rate Sheet'}
               </Text>
             </TouchableOpacity>
+
+            {isEditing && (
+              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} disabled={saving}>
+                <Text style={styles.deleteBtnText}>Delete Rate</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -281,8 +347,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   optionBtnSelected: { backgroundColor: '#075eec20', borderColor: '#075eec' },
+  optionBtnLocked: { alignSelf: 'flex-start', opacity: 0.7 },
   optionBtnText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   optionBtnTextSelected: { color: '#075eec' },
+  lockedHint: { fontSize: 12, color: '#6b7280', marginTop: 6, lineHeight: 16 },
   saveBtn: {
     backgroundColor: '#075eec',
     borderRadius: 10,
@@ -292,4 +360,14 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  deleteBtn: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  deleteBtnText: { color: '#FF3B30', fontSize: 16, fontWeight: '700' },
 });
