@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { HeaderBackButton, headerLeftItems } from '@/components/HeaderBackButton';
+import { HeaderTitle } from '@/components/HeaderTitle';
 
 export default function AdminStackLayout() {
   return (
@@ -8,6 +9,7 @@ export default function AdminStackLayout() {
         headerStyle: { backgroundColor: '#075eec' }, // IronClad Blue
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
+        headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle>,
         // Classic headerLeft as the cross-platform fallback (Android/web).
         headerLeft: ({ canGoBack }) => <HeaderBackButton canGoBack={canGoBack} />,
         unstable_headerLeftItems: headerLeftItems,

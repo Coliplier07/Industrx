@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useProfile } from '@/context/ProfileContext';
+import { HeaderTitle } from '@/components/HeaderTitle';
 
 export default function DashboardLayout() {
   const { profile, loading } = useProfile();
@@ -30,6 +31,7 @@ export default function DashboardLayout() {
         headerStyle: { backgroundColor: '#075eec' }, // IronClad Blue
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
+        headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle>,
         tabBarActiveTintColor: '#075eec',
         tabBarInactiveTintColor: '#8e8e93',
       }}
