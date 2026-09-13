@@ -23,6 +23,10 @@ interface ProfileContextValue {
   // layout via Stack.Protected, instead of imperative navigation from deep
   // inside the Tabs navigator, which has proven unreliable.
   hasSession: boolean;
+  // Freshly-signed URL for the company's logo (private bucket), null if the
+  // company hasn't set one. Shared here rather than re-fetched per-screen
+  // since the header shows it on every screen.
+  companyLogoUrl: string | null;
   refresh: () => Promise<void>;
 }
 
@@ -45,6 +49,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasSession, setHasSession] = useState(false);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 
   // Guards against a stale, slower fetch (e.g. one started for the previous
   // account) resolving after a newer one and overwriting it with the wrong
@@ -78,6 +83,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       // create_company_and_admin has run — not a real error.
       if (error) console.error('Failed to load profile:', error.message);
       setProfile(null);
+      setCompanyLogoUrl(null);
       setLoading(false);
       return;
     }
@@ -90,6 +96,24 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }
 
     setProfile(mapped);
+
+    const { data: company } = await supabase
+      .from('companies')
+      .select('logo_path')
+      .eq('id', mapped.companyId)
+      .single();
+    if (fetchIdRef.current !== fetchId) return;
+
+    if (company?.logo_path) {
+      const { data: signedLogo } = await supabase.storage
+        .from('company-logos')
+        .createSignedUrl(company.logo_path, 3600);
+      if (fetchIdRef.current !== fetchId) return;
+      setCompanyLogoUrl(signedLogo?.signedUrl ?? null);
+    } else {
+      setCompanyLogoUrl(null);
+    }
+
     setLoading(false);
   };
 
@@ -121,6 +145,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         setProfile(null);
         setLoading(false);
         setHasSession(false);
+        setCompanyLogoUrl(null);
       }
     });
 
@@ -128,7 +153,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ProfileContext.Provider value={{ profile, loading, hasSession, refresh: fetchProfile }}>
+    <ProfileContext.Provider value={{ profile, loading, hasSession, companyLogoUrl, refresh: fetchProfile }}>
       {children}
     </ProfileContext.Provider>
   );
