@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from '@/context/ProfileContext';
@@ -20,9 +21,12 @@ interface CrewGroup {
 }
 
 export default function CrewHoursReportScreen() {
+  const router = useRouter();
   const { profile } = useProfile();
   const [referenceDate, setReferenceDate] = useState(new Date());
   const [weekLabel, setWeekLabel] = useState('');
+  const [rangeStart, setRangeStart] = useState('');
+  const [rangeEnd, setRangeEnd] = useState('');
   const [groups, setGroups] = useState<CrewGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +42,8 @@ export default function CrewHoursReportScreen() {
         .single();
       const { start, end } = getWeekRange(referenceDate, company?.pay_period_start_day ?? 0);
       setWeekLabel(formatWeekRange(start, end));
+      setRangeStart(start);
+      setRangeEnd(end);
 
       let people: { id: string; full_name: string; role: 'pm' | 'employee'; manager_id: string | null }[];
 
@@ -205,7 +211,16 @@ export default function CrewHoursReportScreen() {
                 </View>
               )}
               {group.members.map((m) => (
-                <View key={m.id} style={styles.card}>
+                <TouchableOpacity
+                  key={m.id}
+                  style={styles.card}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/person/[personId]',
+                      params: { personId: m.id, fullName: m.fullName, start: rangeStart, end: rangeEnd },
+                    })
+                  }
+                >
                   <View>
                     <Text style={styles.employeeName}>
                       {m.fullName}
@@ -215,13 +230,16 @@ export default function CrewHoursReportScreen() {
                       <Text style={styles.employeeRole}>{m.role === 'pm' ? 'PM' : 'Employee'}</Text>
                     )}
                   </View>
-                  <View style={styles.employeeHoursCol}>
-                    <Text style={styles.employeeHours}>
-                      {m.stHours.toFixed(1)} ST · {m.otHours.toFixed(1)} OT
-                    </Text>
-                    <Text style={styles.employeeTotal}>{(m.stHours + m.otHours).toFixed(1)} hrs</Text>
+                  <View style={styles.cardRight}>
+                    <View style={styles.employeeHoursCol}>
+                      <Text style={styles.employeeHours}>
+                        {m.stHours.toFixed(1)} ST · {m.otHours.toFixed(1)} OT
+                      </Text>
+                      <Text style={styles.employeeTotal}>{(m.stHours + m.otHours).toFixed(1)} hrs</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#c7ccd1" style={styles.chevron} />
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           ))
@@ -294,6 +312,8 @@ const styles = StyleSheet.create({
   },
   employeeName: { fontSize: 15, fontWeight: '700', color: '#1e1e1e' },
   employeeRole: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  cardRight: { flexDirection: 'row', alignItems: 'center' },
+  chevron: { marginLeft: 8 },
   employeeHoursCol: { alignItems: 'flex-end' },
   employeeHours: { fontSize: 13, color: '#6b7280' },
   employeeTotal: { fontSize: 15, fontWeight: '700', color: '#075eec', marginTop: 2 },

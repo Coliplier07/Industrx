@@ -19,6 +19,7 @@ export default function CrewHoursStackLayout() {
       <Stack.Screen name="submit" options={{ title: 'Submit Hours' }} />
       <Stack.Screen name="report" options={{ title: 'Weekly Report' }} />
       <Stack.Screen name="requests" options={{ title: 'Change Requests' }} />
+      <Stack.Screen name="person/[personId]" />
     </Stack>
   );
 }
