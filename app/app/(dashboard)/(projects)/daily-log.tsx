@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,21 +11,78 @@ import {
   Platform,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/lib/supabase';
 import { useProjects, LaborEntry, EquipmentEntry, VehicleEntry } from '@/context/ProjectsContext';
+
+interface RosterMember {
+  id: string;
+  fullName: string;
+}
+
+interface RateSheetItem {
+  id: string;
+  category: 'labor' | 'equipment' | 'vehicle' | 'per_diem';
+  name: string;
+  rateType: 'hourly' | 'daily' | 'per_job';
+  rate: number;
+}
+
+// A flat daily rate covers a standard 8-hour day; hours beyond that are
+// prorated off the same rate rather than charged again in full.
+function computeDailyRateCost(rate: number, hoursUsed: number): number {
+  const cost = hoursUsed > 8 ? (rate / 8) * hoursUsed : rate;
+  return Math.round(cost * 100) / 100;
+}
+
+type PickerTarget =
+  | { entryType: 'labor'; entryId: string; field: 'employee' | 'role' | 'perDiem' }
+  | { entryType: 'equipment'; entryId: string; field: 'item' }
+  | { entryType: 'vehicle'; entryId: string; field: 'item' };
 
 export default function DailyLogScreen() {
   const { projectId, logId } = useLocalSearchParams<{ projectId: string; logId?: string }>();
   const { loading } = useProjects();
 
-  // Don't mount the form until projects have actually loaded — otherwise,
-  // if this screen is reached before the initial fetch resolves, the form's
-  // initial state would snapshot "not found yet" and permanently miss the
-  // real existing values once data does arrive.
-  if (logId && loading) {
+  const [roster, setRoster] = useState<RosterMember[]>([]);
+  const [rateSheetItems, setRateSheetItems] = useState<RateSheetItem[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      const [rosterResult, rateSheetResult] = await Promise.all([
+        supabase.from('profiles').select('id, full_name').in('role', ['pm', 'employee']),
+        supabase.from('rate_sheet_items').select('id, category, name, rate_type, rate'),
+      ]);
+
+      if (rosterResult.error) console.error('Failed to load roster:', rosterResult.error.message);
+      if (rateSheetResult.error) console.error('Failed to load rate sheet:', rateSheetResult.error.message);
+
+      setRoster(
+        (rosterResult.data ?? []).map((row) => ({ id: row.id, fullName: row.full_name || 'Unnamed' }))
+      );
+      setRateSheetItems(
+        (rateSheetResult.data ?? []).map((row: any) => ({
+          id: row.id,
+          category: row.category,
+          name: row.name,
+          rateType: row.rate_type,
+          rate: Number(row.rate) || 0,
+        }))
+      );
+      setLoadingOptions(false);
+    };
+    fetchOptions();
+  }, []);
+
+  // Don't mount the form until projects and the picker options have loaded —
+  // otherwise the form's initial state would snapshot "not found/empty yet"
+  // and permanently miss the real values once data does arrive.
+  if ((logId && loading) || loadingOptions) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#075eec" />
@@ -36,10 +93,28 @@ export default function DailyLogScreen() {
   // `key` forces a fresh component instance (and fresh initial state) whenever
   // the target log changes, since this hidden-tab screen would otherwise be
   // reused across navigations instead of remounted.
-  return <DailyLogForm key={`${projectId}-${logId ?? 'new'}`} projectId={projectId} logId={logId} />;
+  return (
+    <DailyLogForm
+      key={`${projectId}-${logId ?? 'new'}`}
+      projectId={projectId}
+      logId={logId}
+      roster={roster}
+      rateSheetItems={rateSheetItems}
+    />
+  );
 }
 
-function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string }) {
+function DailyLogForm({
+  projectId,
+  logId,
+  roster,
+  rateSheetItems,
+}: {
+  projectId: string;
+  logId?: string;
+  roster: RosterMember[];
+  rateSheetItems: RateSheetItem[];
+}) {
   const router = useRouter();
   const navigation = useNavigation();
   const { getProject, addDailyLog, updateDailyLog } = useProjects();
@@ -51,79 +126,134 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
     navigation.setOptions({ title: isEditing ? 'Edit Daily Log' : 'New Daily Log' });
   }, [isEditing]);
 
+  const laborRoleOptions = rateSheetItems.filter((i) => i.category === 'labor');
+  const equipmentOptions = rateSheetItems.filter((i) => i.category === 'equipment');
+  const vehicleOptions = rateSheetItems.filter((i) => i.category === 'vehicle');
+  const perDiemOptions = rateSheetItems.filter((i) => i.category === 'per_diem');
+
+  const canAddLabor = roster.length > 0 && laborRoleOptions.length > 0;
+  const canAddEquipment = equipmentOptions.length > 0;
+  const canAddVehicle = vehicleOptions.length > 0;
+
   // Form State
   const [logDate, setLogDate] = useState(existingLog ? new Date(existingLog.date) : new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [workDescription, setWorkDescription] = useState(existingLog?.workDescription ?? '');
-  const [laborEntries, setLaborEntries] = useState<LaborEntry[]>(
-    existingLog?.laborEntries ?? [{ id: '1', workerName: '', trade: 'Operator', stHours: 8, otHours: 0 }]
-  );
+  const [laborEntries, setLaborEntries] = useState<LaborEntry[]>(existingLog?.laborEntries ?? []);
   const [equipmentEntries, setEquipmentEntries] = useState<EquipmentEntry[]>(
-    existingLog?.equipmentEntries ?? [{ id: '1', equipmentName: '', hoursUsed: 8 }]
+    existingLog?.equipmentEntries ?? []
   );
-  const [vehicleEntries, setVehicleEntries] = useState<VehicleEntry[]>(
-    existingLog?.vehicleEntries ?? [{ id: '1', vehicleName: '', hoursUsed: 8 }]
-  );
+  const [vehicleEntries, setVehicleEntries] = useState<VehicleEntry[]>(existingLog?.vehicleEntries ?? []);
   const [saving, setSaving] = useState(false);
+  const [picker, setPicker] = useState<PickerTarget | null>(null);
 
   // --- Labor Handlers ---
   const addLaborRow = () => {
     setLaborEntries([
       ...laborEntries,
-      { id: Date.now().toString(), workerName: '', trade: 'Laborer', stHours: 8, otHours: 0 },
+      {
+        id: Date.now().toString(),
+        employeeId: '',
+        employeeName: '',
+        rateSheetItemId: '',
+        roleName: '',
+        perDiemItemId: null,
+        perDiemName: null,
+        stHours: 8,
+        otHours: 0,
+      },
     ]);
   };
 
-  const updateLabor = (id: string, field: keyof LaborEntry, value: any) => {
-    setLaborEntries(
-      laborEntries.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
-    );
+  // Functional updater form throughout below (prev => ...), not a closure
+  // over the current state variable -- two of these can otherwise be called
+  // back-to-back in one handler (see handlePick) and both compute their
+  // patch from the same stale snapshot, so the first call's change gets
+  // silently overwritten by the second.
+  const patchLabor = (id: string, patch: Partial<LaborEntry>) => {
+    setLaborEntries((prev) => prev.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)));
   };
 
   const removeLabor = (id: string) => {
-    if (laborEntries.length > 1) {
-      setLaborEntries(laborEntries.filter((entry) => entry.id !== id));
-    }
+    setLaborEntries((prev) => prev.filter((entry) => entry.id !== id));
+  };
+
+  // A flat daily-rate item gets its cost computed here, from whatever the
+  // entry's rate sheet item and hours are *after* this patch is applied --
+  // covers both picking a different item and adjusting hours.
+  const withRecalculatedCost = <T extends { rateSheetItemId: string; hoursUsed: number }>(
+    entry: T
+  ): T => {
+    const rateItem = rateSheetItems.find((i) => i.id === entry.rateSheetItemId);
+    return { ...entry, cost: rateItem?.rateType === 'daily' ? computeDailyRateCost(rateItem.rate, entry.hoursUsed) : null };
   };
 
   // --- Equipment Handlers ---
   const addEquipmentRow = () => {
     setEquipmentEntries([
       ...equipmentEntries,
-      { id: Date.now().toString(), equipmentName: '', hoursUsed: 8 },
+      { id: Date.now().toString(), rateSheetItemId: '', equipmentName: '', hoursUsed: 8, cost: null },
     ]);
   };
 
-  const updateEquipment = (id: string, field: keyof EquipmentEntry, value: any) => {
-    setEquipmentEntries(
-      equipmentEntries.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
+  const patchEquipment = (id: string, patch: Partial<EquipmentEntry>) => {
+    setEquipmentEntries((prev) =>
+      prev.map((entry) => (entry.id === id ? withRecalculatedCost({ ...entry, ...patch }) : entry))
     );
   };
 
   const removeEquipment = (id: string) => {
-    if (equipmentEntries.length > 1) {
-      setEquipmentEntries(equipmentEntries.filter((entry) => entry.id !== id));
-    }
+    setEquipmentEntries((prev) => prev.filter((entry) => entry.id !== id));
   };
 
   // --- Vehicle Handlers ---
   const addVehicleRow = () => {
     setVehicleEntries([
       ...vehicleEntries,
-      { id: Date.now().toString(), vehicleName: '', hoursUsed: 8 },
+      { id: Date.now().toString(), rateSheetItemId: '', vehicleName: '', hoursUsed: 8, cost: null },
     ]);
   };
 
-  const updateVehicle = (id: string, field: keyof VehicleEntry, value: any) => {
-    setVehicleEntries(
-      vehicleEntries.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
+  const patchVehicle = (id: string, patch: Partial<VehicleEntry>) => {
+    setVehicleEntries((prev) =>
+      prev.map((entry) => (entry.id === id ? withRecalculatedCost({ ...entry, ...patch }) : entry))
     );
   };
 
   const removeVehicle = (id: string) => {
-    if (vehicleEntries.length > 1) {
-      setVehicleEntries(vehicleEntries.filter((entry) => entry.id !== id));
+    setVehicleEntries((prev) => prev.filter((entry) => entry.id !== id));
+  };
+
+  // --- Picker Handlers ---
+  const pickerOptions: { id: string; label: string }[] | null = (() => {
+    if (!picker) return null;
+    if (picker.entryType === 'labor') {
+      if (picker.field === 'employee') return roster.map((r) => ({ id: r.id, label: r.fullName }));
+      if (picker.field === 'role') return laborRoleOptions.map((i) => ({ id: i.id, label: i.name }));
+      return [{ id: '', label: 'No Per Diem' }, ...perDiemOptions.map((i) => ({ id: i.id, label: i.name }))];
     }
+    if (picker.entryType === 'equipment') return equipmentOptions.map((i) => ({ id: i.id, label: i.name }));
+    return vehicleOptions.map((i) => ({ id: i.id, label: i.name }));
+  })();
+
+  const handlePick = (option: { id: string; label: string }) => {
+    if (!picker) return;
+
+    if (picker.entryType === 'labor') {
+      if (picker.field === 'employee') {
+        patchLabor(picker.entryId, { employeeId: option.id, employeeName: option.label });
+      } else if (picker.field === 'role') {
+        patchLabor(picker.entryId, { rateSheetItemId: option.id, roleName: option.label });
+      } else {
+        patchLabor(picker.entryId, { perDiemItemId: option.id || null, perDiemName: option.id ? option.label : null });
+      }
+    } else if (picker.entryType === 'equipment') {
+      patchEquipment(picker.entryId, { rateSheetItemId: option.id, equipmentName: option.label });
+    } else {
+      patchVehicle(picker.entryId, { rateSheetItemId: option.id, vehicleName: option.label });
+    }
+
+    setPicker(null);
   };
 
   // --- Date Handler ---
@@ -146,6 +276,19 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
 
     if (!projectId) {
       Alert.alert('Error', 'No project selected for this log.');
+      return;
+    }
+
+    if (laborEntries.some((e) => !e.employeeId || !e.rateSheetItemId)) {
+      Alert.alert('Incomplete Labor Entry', 'Select a worker and a role for every labor entry.');
+      return;
+    }
+    if (equipmentEntries.some((e) => !e.rateSheetItemId)) {
+      Alert.alert('Incomplete Equipment Entry', 'Select an equipment item for every equipment entry.');
+      return;
+    }
+    if (vehicleEntries.some((e) => !e.rateSheetItemId)) {
+      Alert.alert('Incomplete Vehicle Entry', 'Select a vehicle for every vehicle entry.');
       return;
     }
 
@@ -238,23 +381,57 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.sectionTitle}>Labor Tracking</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={addLaborRow}>
-              <Ionicons name="add-circle" size={20} color="#075eec" />
-              <Text style={styles.addBtnText}>Add Worker</Text>
+            <TouchableOpacity
+              style={[styles.addBtn, !canAddLabor && styles.addBtnDisabled]}
+              onPress={addLaborRow}
+              disabled={!canAddLabor}
+            >
+              <Ionicons name="add-circle" size={20} color={canAddLabor ? '#075eec' : '#c7ccd1'} />
+              <Text style={[styles.addBtnText, !canAddLabor && styles.addBtnTextDisabled]}>Add Worker</Text>
             </TouchableOpacity>
           </View>
 
+          {!canAddLabor && (
+            <Text style={styles.emptyStateText}>
+              {roster.length === 0
+                ? 'No PMs or employees in your company yet.'
+                : 'Add a labor role to the Rate Sheet first.'}
+            </Text>
+          )}
+
           {laborEntries.map((item) => (
             <View key={item.id} style={styles.entryRow}>
-              <View style={styles.inputGroup}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Worker Name / ID"
-                  placeholderTextColor="#8e8e93"
-                  value={item.workerName}
-                  onChangeText={(val) => updateLabor(item.id, 'workerName', val)}
-                />
-              </View>
+              <TouchableOpacity
+                style={styles.pickerBtn}
+                onPress={() => setPicker({ entryType: 'labor', entryId: item.id, field: 'employee' })}
+              >
+                <Text style={[styles.pickerBtnText, !item.employeeName && styles.pickerBtnPlaceholder]}>
+                  {item.employeeName || 'Select Worker'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.pickerBtn}
+                onPress={() => setPicker({ entryType: 'labor', entryId: item.id, field: 'role' })}
+              >
+                <Text style={[styles.pickerBtnText, !item.roleName && styles.pickerBtnPlaceholder]}>
+                  {item.roleName || 'Select Role'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+              </TouchableOpacity>
+
+              {perDiemOptions.length > 0 && (
+                <TouchableOpacity
+                  style={styles.pickerBtn}
+                  onPress={() => setPicker({ entryType: 'labor', entryId: item.id, field: 'perDiem' })}
+                >
+                  <Text style={[styles.pickerBtnText, !item.perDiemName && styles.pickerBtnPlaceholder]}>
+                    {item.perDiemName || 'No Per Diem'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                </TouchableOpacity>
+              )}
 
               <View style={styles.counterRow}>
                 {/* Straight Time Counter */}
@@ -263,14 +440,14 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
                   <View style={styles.counterControls}>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateLabor(item.id, 'stHours', Math.max(0, item.stHours - 0.5))}
+                      onPress={() => patchLabor(item.id, { stHours: Math.max(0, item.stHours - 0.5) })}
                     >
                       <Text style={styles.stepBtnText}>-</Text>
                     </TouchableOpacity>
                     <Text style={styles.counterValue}>{item.stHours}</Text>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateLabor(item.id, 'stHours', item.stHours + 0.5)}
+                      onPress={() => patchLabor(item.id, { stHours: item.stHours + 0.5 })}
                     >
                       <Text style={styles.stepBtnText}>+</Text>
                     </TouchableOpacity>
@@ -283,25 +460,23 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
                   <View style={styles.counterControls}>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateLabor(item.id, 'otHours', Math.max(0, item.otHours - 0.5))}
+                      onPress={() => patchLabor(item.id, { otHours: Math.max(0, item.otHours - 0.5) })}
                     >
                       <Text style={styles.stepBtnText}>-</Text>
                     </TouchableOpacity>
                     <Text style={styles.counterValue}>{item.otHours}</Text>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateLabor(item.id, 'otHours', item.otHours + 0.5)}
+                      onPress={() => patchLabor(item.id, { otHours: item.otHours + 0.5 })}
                     >
                       <Text style={styles.stepBtnText}>+</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                {laborEntries.length > 1 && (
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => removeLabor(item.id)}>
-                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => removeLabor(item.id)}>
+                  <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                </TouchableOpacity>
               </View>
             </View>
           ))}
@@ -311,21 +486,38 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.sectionTitle}>Vehicle Tracking</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={addVehicleRow}>
-              <Ionicons name="add-circle" size={20} color="#075eec" />
-              <Text style={styles.addBtnText}>Add Vehicle</Text>
+            <TouchableOpacity
+              style={[styles.addBtn, !canAddVehicle && styles.addBtnDisabled]}
+              onPress={addVehicleRow}
+              disabled={!canAddVehicle}
+            >
+              <Ionicons name="add-circle" size={20} color={canAddVehicle ? '#075eec' : '#c7ccd1'} />
+              <Text style={[styles.addBtnText, !canAddVehicle && styles.addBtnTextDisabled]}>Add Vehicle</Text>
             </TouchableOpacity>
           </View>
 
+          {!canAddVehicle && (
+            <Text style={styles.emptyStateText}>Add a vehicle to the Rate Sheet first.</Text>
+          )}
+
           {vehicleEntries.map((item) => (
             <View key={item.id} style={styles.entryRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Vehicle Name / Unit #"
-                placeholderTextColor="#8e8e93"
-                value={item.vehicleName}
-                onChangeText={(val) => updateVehicle(item.id, 'vehicleName', val)}
-              />
+              <TouchableOpacity
+                style={styles.pickerBtn}
+                onPress={() => setPicker({ entryType: 'vehicle', entryId: item.id, field: 'item' })}
+              >
+                <Text style={[styles.pickerBtnText, !item.vehicleName && styles.pickerBtnPlaceholder]}>
+                  {item.vehicleName || 'Select Vehicle'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+              </TouchableOpacity>
+
+              {item.cost !== null && (
+                <Text style={styles.costText}>
+                  Est. Cost: ${item.cost.toFixed(2)}
+                  {item.hoursUsed > 8 ? ' (prorated over 8 hrs)' : ''}
+                </Text>
+              )}
 
               <View style={styles.counterRow}>
                 <View style={styles.counterContainer}>
@@ -333,25 +525,23 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
                   <View style={styles.counterControls}>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateVehicle(item.id, 'hoursUsed', Math.max(0, item.hoursUsed - 0.5))}
+                      onPress={() => patchVehicle(item.id, { hoursUsed: Math.max(0, item.hoursUsed - 0.5) })}
                     >
                       <Text style={styles.stepBtnText}>-</Text>
                     </TouchableOpacity>
                     <Text style={styles.counterValue}>{item.hoursUsed}</Text>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateVehicle(item.id, 'hoursUsed', item.hoursUsed + 0.5)}
+                      onPress={() => patchVehicle(item.id, { hoursUsed: item.hoursUsed + 0.5 })}
                     >
                       <Text style={styles.stepBtnText}>+</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                {vehicleEntries.length > 1 && (
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => removeVehicle(item.id)}>
-                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => removeVehicle(item.id)}>
+                  <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                </TouchableOpacity>
               </View>
             </View>
           ))}
@@ -361,21 +551,40 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.sectionTitle}>Equipment Usage</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={addEquipmentRow}>
-              <Ionicons name="add-circle" size={20} color="#075eec" />
-              <Text style={styles.addBtnText}>Add Equipment</Text>
+            <TouchableOpacity
+              style={[styles.addBtn, !canAddEquipment && styles.addBtnDisabled]}
+              onPress={addEquipmentRow}
+              disabled={!canAddEquipment}
+            >
+              <Ionicons name="add-circle" size={20} color={canAddEquipment ? '#075eec' : '#c7ccd1'} />
+              <Text style={[styles.addBtnText, !canAddEquipment && styles.addBtnTextDisabled]}>
+                Add Equipment
+              </Text>
             </TouchableOpacity>
           </View>
 
+          {!canAddEquipment && (
+            <Text style={styles.emptyStateText}>Add equipment to the Rate Sheet first.</Text>
+          )}
+
           {equipmentEntries.map((item) => (
             <View key={item.id} style={styles.entryRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Equipment Name / Unit #"
-                placeholderTextColor="#8e8e93"
-                value={item.equipmentName}
-                onChangeText={(val) => updateEquipment(item.id, 'equipmentName', val)}
-              />
+              <TouchableOpacity
+                style={styles.pickerBtn}
+                onPress={() => setPicker({ entryType: 'equipment', entryId: item.id, field: 'item' })}
+              >
+                <Text style={[styles.pickerBtnText, !item.equipmentName && styles.pickerBtnPlaceholder]}>
+                  {item.equipmentName || 'Select Equipment'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+              </TouchableOpacity>
+
+              {item.cost !== null && (
+                <Text style={styles.costText}>
+                  Est. Cost: ${item.cost.toFixed(2)}
+                  {item.hoursUsed > 8 ? ' (prorated over 8 hrs)' : ''}
+                </Text>
+              )}
 
               <View style={styles.counterRow}>
                 <View style={styles.counterContainer}>
@@ -383,31 +592,32 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
                   <View style={styles.counterControls}>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateEquipment(item.id, 'hoursUsed', Math.max(0, item.hoursUsed - 0.5))}
+                      onPress={() => patchEquipment(item.id, { hoursUsed: Math.max(0, item.hoursUsed - 0.5) })}
                     >
                       <Text style={styles.stepBtnText}>-</Text>
                     </TouchableOpacity>
                     <Text style={styles.counterValue}>{item.hoursUsed}</Text>
                     <TouchableOpacity
                       style={styles.stepBtn}
-                      onPress={() => updateEquipment(item.id, 'hoursUsed', item.hoursUsed + 0.5)}
+                      onPress={() => patchEquipment(item.id, { hoursUsed: item.hoursUsed + 0.5 })}
                     >
                       <Text style={styles.stepBtnText}>+</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                {equipmentEntries.length > 1 && (
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => removeEquipment(item.id)}>
-                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => removeEquipment(item.id)}>
+                  <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                </TouchableOpacity>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Action Button */}
+      </ScrollView>
+
+      {/* Fixed footer so submitting doesn't require scrolling to the bottom */}
+      <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSaveLog}
@@ -417,9 +627,29 @@ function DailyLogForm({ projectId, logId }: { projectId: string; logId?: string 
             {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Submit Daily Log'}
           </Text>
         </TouchableOpacity>
-
-      </ScrollView>
+      </View>
       </KeyboardAvoidingView>
+
+      <Modal visible={picker !== null} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
+        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setPicker(null)}>
+          <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+            <ScrollView>
+              {(pickerOptions ?? []).map((option) => (
+                <TouchableOpacity
+                  key={option.id || 'none'}
+                  style={styles.modalOption}
+                  onPress={() => handlePick(option)}
+                >
+                  <Text style={styles.modalOptionText}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setPicker(null)}>
+              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -465,7 +695,10 @@ const styles = StyleSheet.create({
   },
   doneBtnText: { color: '#075eec', fontWeight: '700' },
   addBtn: { flexDirection: 'row', alignItems: 'center' },
+  addBtnDisabled: {},
   addBtnText: { color: '#075eec', fontWeight: '600', marginLeft: 4 },
+  addBtnTextDisabled: { color: '#c7ccd1' },
+  emptyStateText: { fontSize: 13, color: '#6b7280', fontStyle: 'italic' },
   textArea: {
     backgroundColor: '#f8f9fa',
     borderColor: '#e1e4e8',
@@ -482,17 +715,21 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     marginTop: 8,
   },
-  inputGroup: { marginBottom: 8 },
-  input: {
+  pickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#f8f9fa',
     borderColor: '#e1e4e8',
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
     marginBottom: 8,
   },
+  pickerBtnText: { fontSize: 15, fontWeight: '600', color: '#1e1e1e' },
+  pickerBtnPlaceholder: { color: '#8e8e93', fontWeight: '400' },
+  costText: { fontSize: 13, fontWeight: '600', color: '#075eec', marginBottom: 8 },
   counterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -519,14 +756,42 @@ const styles = StyleSheet.create({
   stepBtnText: { fontSize: 18, fontWeight: 'bold', color: '#075eec' },
   counterValue: { width: 40, textAlign: 'center', fontSize: 16, fontWeight: '700' },
   deleteBtn: { padding: 8, justifyContent: 'center', alignItems: 'center' },
+  footer: {
+    backgroundColor: '#eBecf4',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    padding: 16,
+  },
   saveButton: {
     backgroundColor: '#075eec',
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 32,
   },
   saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: '#00000080',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '70%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 8,
+  },
+  modalOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f5',
+  },
+  modalOptionText: { fontSize: 16, fontWeight: '600', color: '#1e1e1e' },
+  modalCancelBtn: { paddingVertical: 14, alignItems: 'center' },
+  modalCancelBtnText: { color: '#6b7280', fontSize: 15, fontWeight: '700' },
 });

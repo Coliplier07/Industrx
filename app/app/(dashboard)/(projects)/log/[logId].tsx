@@ -91,9 +91,10 @@ export default function LogDetailScreen() {
         <View style={styles.card}>
           {log.laborEntries.map((entry) => (
             <View key={entry.id} style={styles.entryRow}>
-              <Text style={styles.entryName}>{entry.workerName || 'Unnamed Worker'}</Text>
+              <Text style={styles.entryName}>{entry.employeeName}</Text>
               <Text style={styles.entryMeta}>
-                {entry.trade} · {entry.stHours} ST · {entry.otHours} OT
+                {entry.roleName} · {entry.stHours} ST · {entry.otHours} OT
+                {entry.perDiemName ? ` · ${entry.perDiemName}` : ''}
               </Text>
             </View>
           ))}
@@ -104,7 +105,9 @@ export default function LogDetailScreen() {
           {log.vehicleEntries.map((entry) => (
             <View key={entry.id} style={styles.entryRow}>
               <Text style={styles.entryName}>{entry.vehicleName || 'Unnamed Vehicle'}</Text>
-              <Text style={styles.entryMeta}>{entry.hoursUsed} hours used</Text>
+              <Text style={styles.entryMeta}>
+                {entry.hoursUsed} hours used{entry.cost !== null ? ` · $${entry.cost.toFixed(2)}` : ''}
+              </Text>
             </View>
           ))}
         </View>
@@ -114,7 +117,9 @@ export default function LogDetailScreen() {
           {log.equipmentEntries.map((entry) => (
             <View key={entry.id} style={styles.entryRow}>
               <Text style={styles.entryName}>{entry.equipmentName || 'Unnamed Equipment'}</Text>
-              <Text style={styles.entryMeta}>{entry.hoursUsed} hours operated</Text>
+              <Text style={styles.entryMeta}>
+                {entry.hoursUsed} hours operated{entry.cost !== null ? ` · $${entry.cost.toFixed(2)}` : ''}
+              </Text>
             </View>
           ))}
         </View>

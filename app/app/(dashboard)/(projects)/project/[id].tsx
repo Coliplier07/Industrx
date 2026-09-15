@@ -1,5 +1,18 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, SafeAreaView, Image, Alert } from 'react-native';
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  Image,
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProjects, DailyLog, Receipt } from '@/context/ProjectsContext';
@@ -14,6 +27,9 @@ export default function ProjectDetailScreen() {
   const { profile } = useProfile();
   const project = getProject(id);
   const isAdmin = profile?.role === 'admin';
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const handleToggleStatus = async () => {
     if (!project) return;
@@ -27,25 +43,20 @@ export default function ProjectDetailScreen() {
 
   const handleDelete = () => {
     if (!project) return;
-    Alert.alert(
-      'Delete Project',
-      'This deletes the project and everything in it — daily logs, receipts, all of it. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteProject(project.id);
-              router.back();
-            } catch (error: any) {
-              Alert.alert('Error', error.message ?? 'Failed to delete project.');
-            }
-          },
-        },
-      ]
-    );
+    setDeleteConfirmText('');
+    setConfirmingDelete(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!project) return;
+    setDeleting(true);
+    try {
+      await deleteProject(project.id);
+      router.back();
+    } catch (error: any) {
+      setDeleting(false);
+      Alert.alert('Error', error.message ?? 'Failed to delete project.');
+    }
   };
 
   const showOptions = () => {
@@ -162,6 +173,55 @@ export default function ProjectDetailScreen() {
         )}
 
       </ScrollView>
+
+      <Modal
+        visible={confirmingDelete}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmingDelete(false)}
+      >
+        <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete {project.name}?</Text>
+            <Text style={styles.deleteWarningText}>
+              This deletes the project and everything in it — daily logs, receipts, all of it. This can&apos;t be
+              undone.
+            </Text>
+            <Text style={styles.deleteConfirmLabel}>
+              Type <Text style={styles.deleteConfirmName}>{project.name}</Text> to confirm
+            </Text>
+            <TextInput
+              style={styles.deleteConfirmInput}
+              placeholder={project.name}
+              placeholderTextColor="#8e8e93"
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+            <View style={styles.deleteConfirmActions}>
+              <TouchableOpacity
+                style={styles.cancelDeleteBtn}
+                onPress={() => setConfirmingDelete(false)}
+                disabled={deleting}
+              >
+                <Text style={styles.cancelDeleteBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.deleteBtn,
+                  (deleting || deleteConfirmText !== project.name) && styles.deleteBtnDisabled,
+                ]}
+                onPress={confirmDelete}
+                disabled={deleting || deleteConfirmText !== project.name}
+              >
+                <Text style={styles.deleteBtnText}>Delete Permanently</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -290,4 +350,52 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   receiptAmountText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: '#00000080',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#1e1e1e', marginBottom: 10 },
+  deleteWarningText: { fontSize: 13, color: '#1e1e1e', marginBottom: 16, lineHeight: 18 },
+  deleteConfirmLabel: { fontSize: 13, color: '#1e1e1e', marginBottom: 8 },
+  deleteConfirmName: { fontWeight: '700' },
+  deleteConfirmInput: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#e1e4e8',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  deleteConfirmActions: { flexDirection: 'row', gap: 8 },
+  cancelDeleteBtn: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  cancelDeleteBtnText: { color: '#1e1e1e', fontSize: 14, fontWeight: '600' },
+  deleteBtn: {
+    flex: 1,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  deleteBtnDisabled: { opacity: 0.4 },
+  deleteBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });

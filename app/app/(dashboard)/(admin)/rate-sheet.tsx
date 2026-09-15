@@ -7,9 +7,9 @@ import HeaderIconButton from '@/components/HeaderIconButton';
 
 interface RateSheetItem {
   id: string;
-  category: 'labor' | 'equipment' | 'vehicle' | 'per_diem' | 'upcharge';
+  category: 'labor' | 'equipment' | 'vehicle' | 'per_diem';
   name: string;
-  rateType: 'hourly' | 'daily' | 'per_job' | 'percentage';
+  rateType: 'hourly' | 'daily' | 'per_job';
   rate: number;
   otRate: number | null;
 }
@@ -19,18 +19,15 @@ const CATEGORY_LABELS: Record<RateSheetItem['category'], string> = {
   equipment: 'Equipment',
   vehicle: 'Vehicles',
   per_diem: 'Per Diem',
-  upcharge: 'Upcharges',
 };
 
 const RATE_TYPE_SUFFIX: Record<RateSheetItem['rateType'], string> = {
   hourly: '/hr',
   daily: '/day',
   per_job: '/job',
-  percentage: '%',
 };
 
 function formatRate(item: RateSheetItem): string {
-  if (item.rateType === 'percentage') return `${item.rate}%`;
   return `$${item.rate.toFixed(2)}${RATE_TYPE_SUFFIX[item.rateType]}`;
 }
 
@@ -68,10 +65,13 @@ export default function RateSheetScreen() {
   };
 
   // Re-fetch every time this screen regains focus (not just on first mount),
-  // so returning from Add/Edit Rate shows the up-to-date list.
+  // so returning from Add/Edit Rate shows the up-to-date list. Deliberately
+  // doesn't toggle `loading` here -- only the very first fetch (from the
+  // useState(true) above) shows the blocking spinner. Otherwise every trip
+  // back from Add/Edit Rate -- even backing out with no changes -- would
+  // blank the whole list and flash the spinner for no reason.
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchItems();
     }, [])
   );
@@ -101,7 +101,7 @@ export default function RateSheetScreen() {
     );
   }
 
-  const grouped = (['labor', 'equipment', 'vehicle', 'per_diem', 'upcharge'] as const).map((category) => ({
+  const grouped = (['labor', 'equipment', 'vehicle', 'per_diem'] as const).map((category) => ({
     category,
     items: items.filter((item) => item.category === category),
   }));
