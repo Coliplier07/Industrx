@@ -20,7 +20,7 @@ interface EntryDetail {
   date: string;
   stHours: number;
   otHours: number;
-  status: 'pending' | 'approved' | 'disputed';
+  status: 'pending' | 'approved' | 'disputed' | 'denied';
   disputeReason: string | null;
   requestedStHours: number | null;
   requestedOtHours: number | null;
@@ -159,6 +159,22 @@ export default function TimesheetEntryScreen() {
             <View style={styles.card}>
               <Text style={styles.waitingText}>You already approved these hours.</Text>
             </View>
+          )}
+
+          {entry.status === 'denied' && (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Change Request Denied</Text>
+              {!!entry.disputeReason && <Text style={styles.disputeText}>You said: {entry.disputeReason}</Text>}
+              <Text style={styles.waitingText}>
+                Your PM kept the hours as originally submitted. Accept below to confirm.
+              </Text>
+            </View>
+          )}
+
+          {entry.status === 'denied' && (
+            <TouchableOpacity style={styles.approveBtn} onPress={handleApprove} disabled={saving}>
+              <Text style={styles.approveBtnText}>Accept</Text>
+            </TouchableOpacity>
           )}
 
           {entry.status === 'pending' && !showDisputeForm && (

@@ -12,8 +12,14 @@ export function getWeekRange(referenceDate: Date, startDay: number = 0): { start
   return { start: toDateString(start), end: toDateString(end) };
 }
 
+// Local calendar date, not UTC — toISOString() converts to UTC first, which
+// rolls the date forward a day in the evening for any timezone behind UTC
+// (all of the US), silently misfiling entries submitted at night.
 export function toDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function formatWeekRange(start: string, end: string): string {

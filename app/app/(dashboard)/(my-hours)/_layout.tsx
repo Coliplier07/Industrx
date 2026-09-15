@@ -16,7 +16,8 @@ export default function MyHoursStackLayout() {
         name="hours"
         options={{ title: 'My Hours', headerLeft: () => null, unstable_headerLeftItems: () => [] }}
       />
-      <Stack.Screen name="entry/[entryId]" />
+      <Stack.Screen name="needs-action" options={{ title: 'Needs Your Action' }} />
+      <Stack.Screen name="entry/[entryId]" options={{ title: 'Hours Entry' }} />
     </Stack>
   );
 }

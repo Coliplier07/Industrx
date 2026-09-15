@@ -14,6 +14,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useProfile } from '@/context/ProfileContext';
+import { toDateString } from '@/lib/week';
 
 interface CrewMember {
   id: string;
@@ -31,6 +32,10 @@ export default function CrewHoursScreen() {
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Snapshot of what's already saved for this date, taken at fetch time —
+  // used to detect and warn about overwriting an existing submission,
+  // separate from `crew`, which changes as the PM edits hours.
+  const [existingByEmployee, setExistingByEmployee] = useState<Map<string, { st: number; ot: number }>>(new Map());
 
   const fetchCrewAndHours = async (forDate: Date) => {
     if (!profile) return;
@@ -64,7 +69,7 @@ export default function CrewHoursScreen() {
       people = [{ id: profile.id, full_name: profile.fullName, role: 'pm' }, ...(data ?? [])];
     }
 
-    const dateStr = forDate.toISOString().slice(0, 10);
+    const dateStr = toDateString(forDate);
     const peopleIds = people.map((p) => p.id);
     const { data: entries } =
       peopleIds.length > 0
@@ -86,6 +91,14 @@ export default function CrewHoursScreen() {
         stHours: Number(entryByEmployee.get(p.id)?.st_hours) || 0,
         otHours: Number(entryByEmployee.get(p.id)?.ot_hours) || 0,
       }))
+    );
+    setExistingByEmployee(
+      new Map(
+        Array.from(entryByEmployee.entries()).map(([id, e]: [string, any]) => [
+          id,
+          { st: Number(e.st_hours) || 0, ot: Number(e.ot_hours) || 0 },
+        ])
+      )
     );
     setLoading(false);
   };
@@ -112,7 +125,7 @@ export default function CrewHoursScreen() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!profile) return;
     const toSubmit = crew.filter((m) => m.stHours > 0 || m.otHours > 0);
     if (toSubmit.length === 0) {
@@ -120,12 +133,44 @@ export default function CrewHoursScreen() {
       return;
     }
 
+    // Anyone already saved for this date with different hours than what's
+    // about to be sent — upserting would silently overwrite them.
+    const overwrites = toSubmit.filter((m) => {
+      const existing = existingByEmployee.get(m.id);
+      return existing && (existing.st !== m.stHours || existing.ot !== m.otHours);
+    });
+
+    if (overwrites.length > 0) {
+      const summary = overwrites
+        .map((m) => {
+          const existing = existingByEmployee.get(m.id)!;
+          return `${m.fullName}: ${existing.st} ST / ${existing.ot} OT → ${m.stHours} ST / ${m.otHours} OT`;
+        })
+        .join('\n');
+      Alert.alert(
+        'Hours Already Submitted',
+        `This will overwrite already-submitted hours for ${overwrites.length} ${
+          overwrites.length === 1 ? 'person' : 'people'
+        }:\n\n${summary}\n\nSubmit anyway?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Submit', style: 'destructive', onPress: () => performSubmit(toSubmit) },
+        ]
+      );
+      return;
+    }
+
+    performSubmit(toSubmit);
+  };
+
+  const performSubmit = async (toSubmit: CrewMember[]) => {
+    if (!profile) return;
     setSaving(true);
     const { error } = await supabase.from('timesheet_entries').upsert(
       toSubmit.map((m) => ({
         company_id: profile.companyId,
         employee_id: m.id,
-        date: date.toISOString().slice(0, 10),
+        date: toDateString(date),
         st_hours: m.stHours,
         ot_hours: m.otHours,
         logged_by: profile.id,
